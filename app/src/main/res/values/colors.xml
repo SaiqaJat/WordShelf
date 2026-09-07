@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Basic Colors -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Theme Palette: Elegant Reader Slate & Warm Sepia -->
+    <color name="color_primary">#2C3E50</color>
+    <color name="color_primary_dark">#1A252F</color>
+    <color name="color_primary_light">#F0EDE6</color>
+    <color name="color_secondary">#5C6B73</color>
+    <color name="color_accent">#8E6E53</color>
+    <color name="color_shadow">#12000000</color>
+
+    <!-- Backgrounds & Surfaces -->
+    <color name="background_color">#FAF8F5</color>
+    <color name="surface_card">#FFFFFF</color>
+    <color name="surface_stroke">#EAE5DD</color>
+    <color name="surface_elevated">#F4F1EA</color>
+
+    <!-- Text Colors -->
+    <color name="text_color">#1C1B1F</color>
+    <color name="text_secondary">#625B71</color>
+    <color name="text_hint">#A098A8</color>
+
+    <!-- Status & Functional Colors -->
+    <color name="color_danger">#DC2626</color>
+    <color name="color_danger_bg">#FEE2E2</color>
+    <color name="color_success">#16A34A</color>
+
+    <!-- Part of Speech Chip Colors -->
+    <color name="chip_noun_bg">#EBF3FA</color>
+    <color name="chip_noun_text">#1B4965</color>
+    <color name="chip_verb_bg">#FDF0ED</color>
+    <color name="chip_verb_text">#9C382B</color>
+    <color name="chip_adj_bg">#EDF7F2</color>
+    <color name="chip_adj_text">#2D6A4F</color>
+    <color name="chip_adv_bg">#FEF7E7</color>
+    <color name="chip_adv_text">#B45309</color>
+    <color name="chip_default_bg">#F0EDE6</color>
+    <color name="chip_default_text">#5C6B73</color>
+</resources>

@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_color"
+    android:gravity="center"
+    tools:context=".splash_screen">
+
+    <LinearLayout
+        android:id="@+id/splash_content"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <!-- Logo Container Card -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/splash_logo_card"
+            android:layout_width="140dp"
+            android:layout_height="140dp"
+            app:cardCornerRadius="32dp"
+            app:cardElevation="8dp"
+            app:strokeWidth="1dp"
+            app:strokeColor="@color/surface_stroke"
+            app:cardBackgroundColor="@color/surface_card">
+
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:padding="16dp"
+                android:src="@drawable/ic_reader_logo"
+                android:contentDescription="@string/app_name"/>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- App Branding Title -->
+        <TextView
+            android:id="@+id/splash_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="WordShelf"
+            android:textColor="@color/text_color"
+            android:textSize="32sp"
+            android:fontFamily="serif"
+            android:textStyle="bold"
+            android:letterSpacing="0.05"/>
+
+        <!-- Tagline Subtitle -->
+        <TextView
+            android:id="@+id/splash_subtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Your personal vocabulary companion"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            android:letterSpacing="0.02"/>
+
+    </LinearLayout>
+
+    <ProgressBar
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="48dp"
+        android:indeterminateTint="@color/color_accent"/>
+
+</RelativeLayout>

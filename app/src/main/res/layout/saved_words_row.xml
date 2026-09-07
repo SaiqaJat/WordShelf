@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/list_item"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginVertical="6dp"
+    app:cardBackgroundColor="@color/surface_card"
+    app:cardCornerRadius="18dp"
+    app:cardElevation="3dp"
+    app:strokeColor="@color/surface_stroke"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <!-- Top Row: Word Title + Action Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/saved_words_textView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/color_primary"
+                    android:textSize="22sp"
+                    android:textStyle="bold"
+                    tools:text="Resilience" />
+
+                <TextView
+                    android:id="@+id/saved_words_phonetic_textView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp"
+                    tools:text="/rɪˈzɪl.jəns/" />
+            </LinearLayout>
+
+            <!-- TTS Audio Button -->
+            <ImageButton
+                android:id="@+id/btn_audio_saved_word"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Audio Pronounce"
+                android:padding="6dp"
+                android:src="@drawable/ic_volume_up"
+                app:tint="@color/color_primary" />
+
+            <!-- Share Button -->
+            <ImageButton
+                android:id="@+id/btn_share_saved_word"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Share"
+                android:padding="6dp"
+                android:src="@drawable/ic_share"
+                app:tint="@color/color_primary" />
+
+            <!-- PDF Export Button -->
+            <ImageButton
+                android:id="@+id/btn_pdf_saved_word"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="PDF"
+                android:padding="6dp"
+                android:src="@drawable/ic_pdf"
+                app:tint="@color/color_danger" />
+
+            <!-- Copy Button -->
+            <ImageButton
+                android:id="@+id/btn_copy_saved_word"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Copy"
+                android:padding="6dp"
+                android:src="@drawable/ic_copy"
+                app:tint="@color/text_secondary" />
+
+        </LinearLayout>
+
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="12dp"
+            android:background="@color/surface_stroke" />
+
+        <!-- Meanings Container -->
+        <LinearLayout
+            android:id="@+id/ll_meanings_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+    </LinearLayout>
+
+</com.google.android.material.card.MaterialCardView>

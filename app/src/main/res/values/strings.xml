@@ -1,0 +1,34 @@
+<resources>
+    <string name="app_name">WordShelf</string>
+    <string name="search_here">Search here…</string>
+    <string name="antonyms">Antonyms</string>
+    <string name="synonyms">Synonyms</string>
+    <string name="definition">Definition</string>
+    <string name="meaning">Meaning</string>
+    <string name="word">Word</string>
+    <string name="search">search</string>
+    <!-- TODO: Remove or change this placeholder text -->
+    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="loading">loading</string>
+    <string name="adding_books_button">Adding books button</string>
+    <string name="book_name">Book Name</string>
+    <string name="delete">Delete</string>
+    <string name="are_you_sure_you_want_to_delete_this_item">Are you sure you want to delete this item?</string>
+    <string name="save">save</string>
+    <string name="synonym1_synonym2_synonym3">synonym1, synonym2, synonym3,</string>
+    <string name="antonym">Antonyms :</string>
+    <string name="antonyms1_antonyms2_antonyms3">antonyms1, antonyms2, antonyms3,</string>
+    <string name="_1_defination_n_n_2_another_n_n_3rd_one">1 defination \n\n 2 another \n\n 3rd One</string>
+    <string name="definitions">Definitions :</string>
+    <string name="noun">noun</string>
+    <string name="synonym">Synonyms :</string>
+    <string name="antonyms1">Antonyms :</string>
+    <string name="antonyms1_antonyms2_antonyms3_1">antonyms1, antonyms2, antonyms3,</string>
+    <string name="synonym1_synonym2_synonym3_1">synonym1, synonym2, synonym3,</string>
+    <string name="synonyms_1">Synonyms :</string>
+    <string name="_1_defination_n_n_2_another_n_n_3rd_one_1">1 defination \n\n 2 another \n\n 3rd One</string>
+    <string name="definitions_1">Definitions :</string>
+    <string name="noun_1">noun</string>
+    <string name="word_1">Word</string>
+    <string name="dictionary">WordShelf</string>
+</resources>

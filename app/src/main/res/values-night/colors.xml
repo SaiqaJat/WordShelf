@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Basic Colors -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Theme Palette: Warm Bronze & Charcoal Obsidian -->
+    <color name="color_primary">#D4A373</color>
+    <color name="color_primary_dark">#121316</color>
+    <color name="color_primary_light">#252830</color>
+    <color name="color_secondary">#94A3B8</color>
+    <color name="color_accent">#E09F67</color>
+    <color name="color_shadow">#40000000</color>
+
+    <!-- Backgrounds & Surfaces -->
+    <color name="background_color">#121316</color>
+    <color name="surface_card">#1C1E23</color>
+    <color name="surface_stroke">#2D3038</color>
+    <color name="surface_elevated">#252830</color>
+
+    <!-- Text Colors -->
+    <color name="text_color">#F0F0F4</color>
+    <color name="text_secondary">#A0A5B5</color>
+    <color name="text_hint">#646977</color>
+
+    <!-- Status & Functional Colors -->
+    <color name="color_danger">#EF4444</color>
+    <color name="color_danger_bg">#3B1C1C</color>
+    <color name="color_success">#22C55E</color>
+
+    <!-- Part of Speech Chip Colors -->
+    <color name="chip_noun_bg">#1E293B</color>
+    <color name="chip_noun_text">#93C5FD</color>
+    <color name="chip_verb_bg">#3B1C1C</color>
+    <color name="chip_verb_text">#FCA5A5</color>
+    <color name="chip_adj_bg">#14382B</color>
+    <color name="chip_adj_text">#86EFAC</color>
+    <color name="chip_adv_bg">#382914</color>
+    <color name="chip_adv_text">#FDE047</color>
+    <color name="chip_default_bg">#252830</color>
+    <color name="chip_default_text">#A0A5B5</color>
+</resources>

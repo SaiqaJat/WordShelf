@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Default Mobile Dimensions (320dp - 480dp) -->
+    <dimen name="screen_margin">16dp</dimen>
+    <dimen name="content_max_width">0dp</dimen> <!-- 0dp means match_parent in mobile -->
+    <dimen name="card_corner_radius">16dp</dimen>
+    <dimen name="search_card_radius">24dp</dimen>
+    <dimen name="touch_target_min">48dp</dimen>
+    
+    <!-- Typography -->
+    <dimen name="header_title_size">22sp</dimen>
+    <dimen name="sub_title_size">13sp</dimen>
+    <dimen name="word_title_size">26sp</dimen>
+    
+    <!-- Grid -->
+    <integer name="book_grid_columns">1</integer>
+</resources>

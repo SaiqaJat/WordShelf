@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:layout_marginBottom="16dp">
+
+    <TextView
+        android:id="@+id/meaning_parts_of_speech_textView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/rounded_bg"
+        android:backgroundTint="@color/chip_noun_bg"
+        android:paddingHorizontal="10dp"
+        android:paddingVertical="3dp"
+        android:textColor="@color/chip_noun_text"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        tools:text="NOUN" />
+
+    <!-- Definitions Header -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Definitions"
+        android:textColor="@color/text_secondary"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textAllCaps="true"
+        android:letterSpacing="0.05" />
+
+    <!-- Definitions Content -->
+    <TextView
+        android:id="@+id/meaning_definitions_textView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:lineSpacingExtra="4dp"
+        android:textColor="@color/text_color"
+        android:textSize="14sp"
+        tools:text="1. The capacity to recover quickly from difficulties; toughness." />
+
+    <!-- Synonyms Block -->
+    <LinearLayout
+        android:id="@+id/ll_meaning_synonyms"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Synonyms"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textAllCaps="true"
+            android:letterSpacing="0.05" />
+
+        <TextView
+            android:id="@+id/meaning_synonyms_textView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textColor="@color/color_primary"
+            android:textSize="13sp"
+            tools:text="toughness, flexibility, strength" />
+    </LinearLayout>
+
+    <!-- Antonyms Block -->
+    <LinearLayout
+        android:id="@+id/ll_meaning_antonyms"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Antonyms"
+            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textAllCaps="true"
+            android:letterSpacing="0.05" />
+
+        <TextView
+            android:id="@+id/meaning_antonyms_textView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textColor="@color/color_danger"
+            android:textSize="13sp"
+            tools:text="fragility, weakness" />
+    </LinearLayout>
+
+</LinearLayout>
