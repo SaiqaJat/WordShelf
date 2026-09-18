@@ -2,6 +2,7 @@
     <!-- Base application theme for Night mode -->
     <style name="Base.Theme.WordShelf" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="colorPrimary">@color/color_primary</item>
+        <item name="colorOnPrimary">@color/color_on_primary</item>
         <item name="colorPrimaryVariant">@color/color_primary_dark</item>
         <item name="colorSecondary">@color/color_secondary</item>
         <item name="android:statusBarColor">@color/background_color</item>
@@ -12,4 +13,11 @@
     </style>
 
     <style name="Theme.WordShelf" parent="Base.Theme.WordShelf" />
+
+    <style name="Theme.WordShelf.Dialog" parent="Theme.MaterialComponents.DayNight.Dialog">
+        <item name="colorPrimary">@color/color_primary</item>
+        <item name="colorOnPrimary">@color/color_on_primary</item>
+        <item name="colorSecondary">@color/color_secondary</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
 </resources>

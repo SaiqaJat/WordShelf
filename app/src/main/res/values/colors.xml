@@ -6,6 +6,7 @@
 
     <!-- Theme Palette: Elegant Reader Slate & Warm Sepia -->
     <color name="color_primary">#2C3E50</color>
+    <color name="color_on_primary">#FFFFFF</color>
     <color name="color_primary_dark">#1A252F</color>
     <color name="color_primary_light">#F0EDE6</color>
     <color name="color_secondary">#5C6B73</color>

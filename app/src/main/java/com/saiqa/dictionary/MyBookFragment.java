@@ -62,30 +62,12 @@ public class MyBookFragment extends Fragment {
         } catch (Exception ignored) {}
 
         book_add_FAB.setOnClickListener(v -> {
-            Dialog dialog = new Dialog(requireContext());
-            dialog.setContentView(R.layout.add_update_books_layout);
-            dialog.setCancelable(true);
-            if (dialog.getWindow() != null) {
-                dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-            }
-            dialog.show();
-
-            EditText edt_book_name = dialog.findViewById(R.id.edt_book_name);
-            Button add_book_btn = dialog.findViewById(R.id.add_book_btn);
-            Button cancel_button = dialog.findViewById(R.id.cancel_button);
-
-            add_book_btn.setOnClickListener(view1 -> {
-                String bookName = edt_book_name.getText().toString().trim();
-                if (!bookName.isEmpty()) {
-                    dictionaryDB.addBook(bookName);
-                    dialog.dismiss();
+            BookDialogUtils.showCreateBookDialog(requireContext(), dictionaryDB, (bookName, success) -> {
+                if (success) {
+                    Toast.makeText(requireContext(), "Book \"" + bookName + "\" created successfully!", Toast.LENGTH_SHORT).show();
                     reloadData();
-                } else {
-                    Toast.makeText(requireContext(), "Enter Book Name", Toast.LENGTH_SHORT).show();
                 }
             });
-
-            cancel_button.setOnClickListener(view12 -> dialog.dismiss());
         });
 
         EditText searchBooksInput = view.findViewById(R.id.search_books_input);

@@ -537,54 +537,46 @@ public class HomeFragment extends Fragment implements TextToSpeech.OnInitListene
 
         RecyclerView recyclerView = view.findViewById(R.id.bookRecyclerView);
         TextView titleText = view.findViewById(R.id.titleText);
-        ImageButton imageButton = view.findViewById(R.id.add_book);
-        LinearLayout linearLayout = view.findViewById(R.id.creatingBook_ll);
+        TextView textNoBooks = view.findViewById(R.id.text_no_books);
+        LinearLayout creatingBookLl = view.findViewById(R.id.creatingBook_ll);
 
         dictionaryDB = new DictionaryDatabaseHelper(context);
         List<String> books = dictionaryDB.getAllBookNames();
 
         if (books.isEmpty()) {
-            titleText.setVisibility(View.GONE);
-            linearLayout.setVisibility(View.VISIBLE);
+            if (textNoBooks != null) textNoBooks.setVisibility(View.VISIBLE);
+            recyclerView.setVisibility(View.GONE);
         } else {
-            titleText.setVisibility(View.VISIBLE);
-            linearLayout.setVisibility(View.GONE);
+            if (textNoBooks != null) textNoBooks.setVisibility(View.GONE);
+            recyclerView.setVisibility(View.VISIBLE);
         }
 
-        imageButton.setOnClickListener(v -> {
-            Dialog dialog = new Dialog(requireContext());
-            View dialogView = LayoutInflater.from(context).inflate(R.layout.add_update_books_layout, null);
-            dialog.setContentView(dialogView);
-            dialog.setCancelable(true);
-            if (dialog.getWindow() != null) {
-                dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-            }
-            dialog.show();
-
-            EditText edt_book_name = dialogView.findViewById(R.id.edt_book_name);
-            Button add_book_btn = dialogView.findViewById(R.id.add_book_btn);
-            Button cancel_button = dialogView.findViewById(R.id.cancel_button);
-
-            add_book_btn.setOnClickListener(v1 -> {
-                String bookName = edt_book_name.getText().toString().trim();
-                if (!bookName.isEmpty()) {
-                    dictionaryDB.addBook(bookName);
-                    dialog.dismiss();
+        // Creating a book is ALWAYS available
+        creatingBookLl.setOnClickListener(v -> {
+            BookDialogUtils.showCreateBookDialog(context, dictionaryDB, (bookName, success) -> {
+                if (success) {
+                    boolean wordSaved = dictionaryDB.addWords(bookName, wordModel);
+                    if (wordSaved) {
+                        Toast.makeText(context, "Saved \"" + wordModel.getWord() + "\" to " + bookName, Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(context, "Book created, but failed to save word", Toast.LENGTH_SHORT).show();
+                    }
                     bottomSheetDialog.dismiss();
-                } else {
-                    Toast.makeText(requireContext(), "Enter Book Name", Toast.LENGTH_SHORT).show();
                 }
             });
-            cancel_button.setOnClickListener(v12 -> dialog.dismiss());
         });
 
         BookSelectionAdapter bookSelectionAdapter = new BookSelectionAdapter(books, bookName -> {
-            dictionaryDB.addWords(bookName, wordModel);
-            Toast.makeText(context, "Saved in " + bookName, Toast.LENGTH_SHORT).show();
+            boolean wordSaved = dictionaryDB.addWords(bookName, wordModel);
+            if (wordSaved) {
+                Toast.makeText(context, "Saved \"" + wordModel.getWord() + "\" to " + bookName, Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(context, "Failed to save word to " + bookName, Toast.LENGTH_SHORT).show();
+            }
             bottomSheetDialog.dismiss();
         });
 
-        recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+        recyclerView.setLayoutManager(new LinearLayoutManager(context));
         recyclerView.setAdapter(bookSelectionAdapter);
         bottomSheetDialog.show();
     }

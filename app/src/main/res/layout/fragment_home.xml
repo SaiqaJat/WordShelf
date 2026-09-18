@@ -108,7 +108,7 @@
                     android:paddingHorizontal="16dp"
                     android:text="Search"
                     android:textAllCaps="false"
-                    android:textColor="@color/white"
+                    android:textColor="@color/color_on_primary"
                     android:textSize="14sp"
                     app:backgroundTint="@color/color_primary"
                     app:cornerRadius="24dp" />
@@ -249,7 +249,7 @@
                 android:layout_marginTop="16dp"
                 android:text="Retry Search"
                 android:textAllCaps="false"
-                android:textColor="@color/white"
+                android:textColor="@color/color_on_primary"
                 app:backgroundTint="@color/color_primary"
                 app:cornerRadius="18dp" />
         </LinearLayout>
@@ -340,12 +340,12 @@
                     android:layout_height="@dimen/touch_target_min"
                     android:text="Save"
                     android:textAllCaps="false"
-                    android:textColor="@color/white"
+                    android:textColor="@color/color_on_primary"
                     android:textSize="14sp"
                     app:backgroundTint="@color/color_primary"
                     app:cornerRadius="16dp"
                     app:icon="@drawable/ic_save"
-                    app:iconTint="@color/white" />
+                    app:iconTint="@color/color_on_primary" />
 
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>

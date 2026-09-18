@@ -1,9 +1,12 @@
 package com.saiqa.dictionary;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.pdf.PdfRenderer;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
 import android.util.Log;
@@ -13,18 +16,16 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
-import androidx.core.content.FileProvider;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,6 +44,12 @@ public class PdfPreviewActivity extends AppCompatActivity {
     private RecyclerView rvPdfPages;
     private PdfPageAdapter adapter;
     private List<Bitmap> pageBitmaps = new ArrayList<>();
+    private Button btnDownload;
+
+    private final ActivityResultLauncher<String> notificationPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
+                // Permission handled
+            });
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -88,7 +95,7 @@ public class PdfPreviewActivity extends AppCompatActivity {
         rvPdfPages.setAdapter(adapter);
 
         Button btnCancel = findViewById(R.id.btn_cancel_preview);
-        Button btnDownload = findViewById(R.id.btn_download_pdf);
+        btnDownload = findViewById(R.id.btn_download_pdf);
 
         btnCancel.setOnClickListener(v -> {
             Toast.makeText(this, "Export cancelled", Toast.LENGTH_SHORT).show();
@@ -96,6 +103,13 @@ public class PdfPreviewActivity extends AppCompatActivity {
         });
 
         btnDownload.setOnClickListener(v -> downloadPdf());
+
+        // Ask for notification permission on Android 13+ if not granted
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS);
+            }
+        }
 
         renderPdfPages();
     }
@@ -147,28 +161,38 @@ public class PdfPreviewActivity extends AppCompatActivity {
     private void downloadPdf() {
         if (pdfFilePath == null) return;
         File file = new File(pdfFilePath);
-        if (!file.exists()) return;
-
-        try {
-            Uri pdfUri = FileProvider.getUriForFile(this, getPackageName() + ".provider", file);
-
-            Intent shareOrSaveIntent = new Intent(Intent.ACTION_SEND);
-            shareOrSaveIntent.setType("application/pdf");
-            shareOrSaveIntent.putExtra(Intent.EXTRA_STREAM, pdfUri);
-            shareOrSaveIntent.putExtra(Intent.EXTRA_SUBJECT, collectionTitle + " Vocabulary");
-            shareOrSaveIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-
-            Intent chooser = Intent.createChooser(shareOrSaveIntent, "Save or Share PDF: " + collectionTitle);
-            chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            startActivity(chooser);
-
-            Toast.makeText(this, "Opening PDF save options...", Toast.LENGTH_SHORT).show();
-            finish();
-
-        } catch (Exception e) {
-            Log.e("PDF_DOWNLOAD", "Error downloading PDF", e);
-            Toast.makeText(this, "Failed to download PDF: " + e.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
+        if (!file.exists()) {
+            Toast.makeText(this, "Unable to save PDF. Please try again.", Toast.LENGTH_SHORT).show();
+            return;
         }
+
+        if (btnDownload != null) {
+            btnDownload.setEnabled(false);
+        }
+
+        Toast.makeText(this, "Saving PDF...", Toast.LENGTH_SHORT).show();
+
+        PdfDownloadManager.savePdfToDownloads(this, file, collectionTitle, new PdfDownloadManager.DownloadCallback() {
+            @Override
+            public void onSuccess(String fileName, Uri fileUri) {
+                runOnUiThread(() -> {
+                    if (btnDownload != null) {
+                        btnDownload.setEnabled(true);
+                    }
+                    Toast.makeText(PdfPreviewActivity.this, "Book saved to Downloads: " + fileName, Toast.LENGTH_LONG).show();
+                });
+            }
+
+            @Override
+            public void onFailure(Exception exception) {
+                runOnUiThread(() -> {
+                    if (btnDownload != null) {
+                        btnDownload.setEnabled(true);
+                    }
+                    Toast.makeText(PdfPreviewActivity.this, "Unable to save PDF. Please try again.", Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
     }
 
     @Override

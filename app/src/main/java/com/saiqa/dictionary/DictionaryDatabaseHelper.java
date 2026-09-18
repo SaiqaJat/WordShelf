@@ -175,19 +175,15 @@ public class DictionaryDatabaseHelper extends SQLiteOpenHelper {
         }
     }
 
-    public void addBook(String title) {
+    public boolean addBook(String title) {
+        if (title == null || title.trim().isEmpty()) return false;
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues cv = new ContentValues();
-        cv.put(COLUMN_TITLE, title);
+        cv.put(COLUMN_TITLE, title.trim());
 
         long result = db.insert(TABLE_NAME, null, cv);
-
-        if (result == -1) {
-            Toast.makeText(context, "Failed", Toast.LENGTH_SHORT).show();
-        } else {
-            Toast.makeText(context, "Added Successfully!", Toast.LENGTH_SHORT).show();
-        }
         db.close();
+        return result != -1;
     }
     
     Cursor readAllData() {
@@ -281,46 +277,45 @@ public class DictionaryDatabaseHelper extends SQLiteOpenHelper {
         return countMap;
     }
 
-    public void addWords(String book_title, DictionaryModel model) {
-        SQLiteDatabase db = this.getWritableDatabase();
-        
-        // First check if word already exists in this book
-        Cursor cursor = db.rawQuery("SELECT * FROM " + TABLE_NAME_1 + " WHERE LOWER(" + COLUMN_WORDS + ") = LOWER(?) AND " + COLUMN_TITLE + " = ?", new String[]{model.getWord(), book_title});
-        
-        if (cursor != null && cursor.moveToFirst()) {
-            // Update existing word
-            int id = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID1));
-            String existingJson = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_MEANINGS_JSON));
-            
-            Type type = new TypeToken<List<Meaning>>(){}.getType();
-            List<Meaning> existingMeanings = gson.fromJson(existingJson, type);
-            if (existingMeanings == null) existingMeanings = new ArrayList<>();
-            
-            // Merge meanings (simplistic approach: just append them and assume the UI filters duplicates, or we can just replace them entirely with the new model's meanings if we assume fetching from API gets all of them).
-            // Actually, fetching from API gets ALL meanings. So if we save it again, we should just overwrite the existing meanings to get the latest.
-            
-            ContentValues values = new ContentValues();
-            values.put(COLUMN_PHONETIC, model.getPhonetic());
-            values.put(COLUMN_MEANINGS_JSON, gson.toJson(model.getMeanings()));
-            
-            db.update(TABLE_NAME_1, values, COLUMN_ID1 + " = ?", new String[]{String.valueOf(id)});
-            cursor.close();
-        } else {
-            // Insert new word
-            if (cursor != null) cursor.close();
-            ContentValues values = new ContentValues();
-            values.put(COLUMN_WORDS, model.getWord());
-            values.put(COLUMN_PHONETIC, model.getPhonetic());
-            values.put(COLUMN_MEANINGS_JSON, gson.toJson(model.getMeanings()));
-            values.put(COLUMN_TITLE, book_title);
-
-            long result = db.insert(TABLE_NAME_1, null, values);
-
-            if (result == -1) {
-                Toast.makeText(context, "Failed to save word to book", Toast.LENGTH_SHORT).show();
-            }
+    public boolean addWords(String book_title, DictionaryModel model) {
+        if (book_title == null || book_title.trim().isEmpty() || model == null || model.getWord() == null) {
+            return false;
         }
-        db.close();
+        SQLiteDatabase db = this.getWritableDatabase();
+        boolean success = false;
+        try {
+            // First check if word already exists in this book
+            Cursor cursor = db.rawQuery("SELECT * FROM " + TABLE_NAME_1 + " WHERE LOWER(" + COLUMN_WORDS + ") = LOWER(?) AND " + COLUMN_TITLE + " = ?", new String[]{model.getWord().trim(), book_title.trim()});
+            
+            if (cursor != null && cursor.moveToFirst()) {
+                // Update existing word
+                int id = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID1));
+                ContentValues values = new ContentValues();
+                values.put(COLUMN_PHONETIC, model.getPhonetic());
+                values.put(COLUMN_MEANINGS_JSON, gson.toJson(model.getMeanings()));
+                
+                int rows = db.update(TABLE_NAME_1, values, COLUMN_ID1 + " = ?", new String[]{String.valueOf(id)});
+                cursor.close();
+                success = (rows > 0);
+            } else {
+                // Insert new word
+                if (cursor != null) cursor.close();
+                ContentValues values = new ContentValues();
+                values.put(COLUMN_WORDS, model.getWord().trim());
+                values.put(COLUMN_PHONETIC, model.getPhonetic());
+                values.put(COLUMN_MEANINGS_JSON, gson.toJson(model.getMeanings()));
+                values.put(COLUMN_TITLE, book_title.trim());
+
+                long result = db.insert(TABLE_NAME_1, null, values);
+                success = (result != -1);
+            }
+        } catch (Exception e) {
+            Log.e("DB_ERROR", "Error adding word to book", e);
+            success = false;
+        } finally {
+            db.close();
+        }
+        return success;
     }
 
     public List<DictionaryModel> getSavedWords(String bookTitle) {
