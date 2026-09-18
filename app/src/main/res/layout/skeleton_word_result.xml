@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Skeleton loading placeholder for the word search result area.
+  Shown while a non-cached word is being fetched from the dictionary API.
+  Uses ObjectAnimator alpha pulsing in HomeFragment to create a shimmer effect.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/skeleton_container"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:visibility="gone">
+
+    <!-- Skeleton: Word Header Card -->
+    <com.google.android.material.card.MaterialCardView
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        app:cardBackgroundColor="@color/surface_card"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="3dp"
+        app:strokeColor="@color/surface_stroke"
+        app:strokeWidth="1dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="12dp"
+                android:orientation="vertical">
+
+                <!-- Word title placeholder -->
+                <View
+                    android:layout_width="160dp"
+                    android:layout_height="26dp"
+                    android:background="@color/skeleton_base"
+                    android:layout_marginBottom="8dp" />
+
+                <!-- Phonetic placeholder -->
+                <View
+                    android:layout_width="100dp"
+                    android:layout_height="16dp"
+                    android:background="@color/skeleton_base" />
+
+            </LinearLayout>
+
+            <!-- Audio button placeholder -->
+            <View
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@color/skeleton_base"
+                android:layout_marginEnd="6dp" />
+
+            <!-- Share button placeholder -->
+            <View
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@color/skeleton_base"
+                android:layout_marginEnd="8dp" />
+
+            <!-- Save button placeholder -->
+            <View
+                android:layout_width="80dp"
+                android:layout_height="40dp"
+                android:background="@color/skeleton_base" />
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Skeleton: Meaning Card 1 -->
+    <com.google.android.material.card.MaterialCardView
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginVertical="6dp"
+        app:cardBackgroundColor="@color/surface_card"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="2dp"
+        app:strokeColor="@color/surface_stroke"
+        app:strokeWidth="1dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Part of speech chip placeholder -->
+            <View
+                android:layout_width="70dp"
+                android:layout_height="30dp"
+                android:background="@color/skeleton_base" />
+
+            <!-- Section label placeholder -->
+            <View
+                android:layout_width="90dp"
+                android:layout_height="12dp"
+                android:background="@color/skeleton_base"
+                android:layout_marginTop="14dp" />
+
+            <!-- Definition line 1 -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="14dp"
+                android:background="@color/skeleton_highlight"
+                android:layout_marginTop="8dp" />
+
+            <!-- Definition line 2 -->
+            <View
+                android:layout_width="280dp"
+                android:layout_height="14dp"
+                android:background="@color/skeleton_highlight"
+                android:layout_marginTop="6dp" />
+
+            <!-- Definition line 3 (shorter) -->
+            <View
+                android:layout_width="200dp"
+                android:layout_height="14dp"
+                android:background="@color/skeleton_highlight"
+                android:layout_marginTop="6dp" />
+
+            <!-- Synonyms label placeholder -->
+            <View
+                android:layout_width="80dp"
+                android:layout_height="12dp"
+                android:background="@color/skeleton_base"
+                android:layout_marginTop="16dp" />
+
+            <!-- Synonyms values placeholder -->
+            <View
+                android:layout_width="240dp"
+                android:layout_height="14dp"
+                android:background="@color/skeleton_highlight"
+                android:layout_marginTop="6dp" />
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Skeleton: Meaning Card 2 (partially visible to suggest more content) -->
+    <com.google.android.material.card.MaterialCardView
+        xmlns:app="http://schemas.android.com/apk/res-auto"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginVertical="6dp"
+        app:cardBackgroundColor="@color/surface_card"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="2dp"
+        app:strokeColor="@color/surface_stroke"
+        app:strokeWidth="1dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Part of speech chip placeholder -->
+            <View
+                android:layout_width="60dp"
+                android:layout_height="30dp"
+                android:background="@color/skeleton_base" />
+
+            <!-- Section label placeholder -->
+            <View
+                android:layout_width="90dp"
+                android:layout_height="12dp"
+                android:background="@color/skeleton_base"
+                android:layout_marginTop="14dp" />
+
+            <!-- Definition line 1 -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="14dp"
+                android:background="@color/skeleton_highlight"
+                android:layout_marginTop="8dp" />
+
+            <!-- Definition line 2 (shorter) -->
+            <View
+                android:layout_width="220dp"
+                android:layout_height="14dp"
+                android:background="@color/skeleton_highlight"
+                android:layout_marginTop="6dp" />
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+</LinearLayout>
