@@ -26,17 +26,20 @@ public class BookDialogUtils {
         }
 
         EditText edt_book_name = dialogView.findViewById(R.id.edt_book_name);
+        EditText edt_book_author = dialogView.findViewById(R.id.edt_book_author);
         Button add_book_btn = dialogView.findViewById(R.id.add_book_btn);
         Button cancel_button = dialogView.findViewById(R.id.cancel_button);
 
         add_book_btn.setOnClickListener(v -> {
             String bookName = edt_book_name.getText() != null ? edt_book_name.getText().toString().trim() : "";
+            String author = edt_book_author != null && edt_book_author.getText() != null 
+                    ? edt_book_author.getText().toString().trim() : "";
             if (bookName.isEmpty()) {
                 Toast.makeText(context, "Please enter a book name", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            boolean created = db.addBook(bookName);
+            boolean created = db.addBook(bookName, author);
             if (created) {
                 dialog.dismiss();
                 if (listener != null) {

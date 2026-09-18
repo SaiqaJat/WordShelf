@@ -144,6 +144,66 @@ public class SavedWordsAdapter extends RecyclerView.Adapter<SavedWordsAdapter.Wo
             }
         }
 
+        // --- Reader Metadata Presentation ---
+        String chapter = model.getChapter() != null ? model.getChapter().trim() : "";
+        String page = model.getPage() != null ? model.getPage().trim() : "";
+        String highlight = model.getHighlight() != null ? model.getHighlight().trim() : "";
+        String note = model.getNote() != null ? model.getNote().trim() : "";
+
+        boolean hasLocation = !chapter.isEmpty() || !page.isEmpty();
+        boolean hasHighlight = !highlight.isEmpty();
+        boolean hasNote = !note.isEmpty();
+        boolean hasReaderData = hasLocation || hasHighlight || hasNote;
+
+        if (holder.ll_reader_metadata_container != null) {
+            if (hasReaderData) {
+                holder.ll_reader_metadata_container.setVisibility(View.VISIBLE);
+
+                // Found While Reading
+                if (hasLocation && holder.ll_reader_found != null && holder.tv_reader_found_text != null) {
+                    holder.ll_reader_found.setVisibility(View.VISIBLE);
+                    if (!chapter.isEmpty() && !page.isEmpty()) {
+                        String pageDisplay = page.toLowerCase().startsWith("p") ? page : "Page " + page;
+                        holder.tv_reader_found_text.setText(chapter + " · " + pageDisplay);
+                    } else if (!chapter.isEmpty()) {
+                        holder.tv_reader_found_text.setText(chapter);
+                    } else {
+                        String pageDisplay = page.toLowerCase().startsWith("p") ? page : "Page " + page;
+                        holder.tv_reader_found_text.setText(pageDisplay);
+                    }
+                } else if (holder.ll_reader_found != null) {
+                    holder.ll_reader_found.setVisibility(View.GONE);
+                }
+
+                // Highlight
+                if (hasHighlight && holder.ll_reader_highlight != null && holder.tv_reader_highlight_text != null) {
+                    holder.ll_reader_highlight.setVisibility(View.VISIBLE);
+                    String formattedHighlight = (highlight.startsWith("\"") && highlight.endsWith("\"")) 
+                            ? highlight : "\"" + highlight + "\"";
+                    holder.tv_reader_highlight_text.setText(formattedHighlight);
+                } else if (holder.ll_reader_highlight != null) {
+                    holder.ll_reader_highlight.setVisibility(View.GONE);
+                }
+
+                // Note
+                if (hasNote && holder.ll_reader_note != null && holder.tv_reader_note_text != null) {
+                    holder.ll_reader_note.setVisibility(View.VISIBLE);
+                    holder.tv_reader_note_text.setText(note);
+                } else if (holder.ll_reader_note != null) {
+                    holder.ll_reader_note.setVisibility(View.GONE);
+                }
+            } else {
+                holder.ll_reader_metadata_container.setVisibility(View.GONE);
+            }
+        }
+
+        // Edit Reader Details Button
+        if (holder.btn_edit_reader_details != null) {
+            holder.btn_edit_reader_details.setOnClickListener(v -> {
+                showEditReaderDetailsDialog(context, model, position);
+            });
+        }
+
         // Audio pronounce button action
         if (holder.btn_audio_saved_word != null) {
             holder.btn_audio_saved_word.setOnClickListener(v -> {
@@ -208,6 +268,57 @@ public class SavedWordsAdapter extends RecyclerView.Adapter<SavedWordsAdapter.Wo
         });
     }
 
+    private void showEditReaderDetailsDialog(Context context, DictionaryModel model, int position) {
+        Dialog dialog = new Dialog(context, R.style.Theme_WordShelf_Dialog);
+        View dialogView = LayoutInflater.from(context).inflate(R.layout.dialog_edit_reader_details, null);
+        dialog.setContentView(dialogView);
+        dialog.setCancelable(true);
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
+
+        TextView title = dialogView.findViewById(R.id.tv_reader_dialog_title);
+        if (title != null && model.getWord() != null) {
+            title.setText("Reader Details — " + model.getWord());
+        }
+
+        android.widget.EditText edtChapter = dialogView.findViewById(R.id.edt_reader_chapter);
+        android.widget.EditText edtPage = dialogView.findViewById(R.id.edt_reader_page);
+        android.widget.EditText edtHighlight = dialogView.findViewById(R.id.edt_reader_highlight);
+        android.widget.EditText edtNote = dialogView.findViewById(R.id.edt_reader_note);
+        Button btnCancel = dialogView.findViewById(R.id.btn_cancel_reader_details);
+        Button btnSave = dialogView.findViewById(R.id.btn_save_reader_details);
+
+        if (edtChapter != null && model.getChapter() != null) edtChapter.setText(model.getChapter());
+        if (edtPage != null && model.getPage() != null) edtPage.setText(model.getPage());
+        if (edtHighlight != null && model.getHighlight() != null) edtHighlight.setText(model.getHighlight());
+        if (edtNote != null && model.getNote() != null) edtNote.setText(model.getNote());
+
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+        btnSave.setOnClickListener(v -> {
+            String newChapter = edtChapter != null ? edtChapter.getText().toString().trim() : "";
+            String newPage = edtPage != null ? edtPage.getText().toString().trim() : "";
+            String newHighlight = edtHighlight != null ? edtHighlight.getText().toString().trim() : "";
+            String newNote = edtNote != null ? edtNote.getText().toString().trim() : "";
+
+            DictionaryDatabaseHelper db = new DictionaryDatabaseHelper(context);
+            boolean updated = db.updateWordReaderDetails(model.getId(), newChapter, newPage, newHighlight, newNote);
+            if (updated) {
+                model.setChapter(newChapter.isEmpty() ? null : newChapter);
+                model.setPage(newPage.isEmpty() ? null : newPage);
+                model.setHighlight(newHighlight.isEmpty() ? null : newHighlight);
+                model.setNote(newNote.isEmpty() ? null : newNote);
+                notifyItemChanged(position);
+                Toast.makeText(context, "Reader details updated", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(context, "Failed to update details", Toast.LENGTH_SHORT).show();
+            }
+            dialog.dismiss();
+        });
+
+        dialog.show();
+    }
+
     @Override
     public int getItemCount() {
         return savedWordsList.size();
@@ -217,7 +328,15 @@ public class SavedWordsAdapter extends RecyclerView.Adapter<SavedWordsAdapter.Wo
 
         TextView saved_words_textView, saved_words_phonetic_textView;
         LinearLayout ll_meanings_container;
-        ImageButton btn_audio_saved_word, btn_share_saved_word, btn_pdf_saved_word, btn_copy_saved_word;
+        ImageButton btn_audio_saved_word, btn_share_saved_word, btn_pdf_saved_word, btn_copy_saved_word, btn_edit_reader_details;
+
+        View ll_reader_metadata_container;
+        View ll_reader_found;
+        TextView tv_reader_found_text;
+        View ll_reader_highlight;
+        TextView tv_reader_highlight_text;
+        View ll_reader_note;
+        TextView tv_reader_note_text;
 
         public WordViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -225,10 +344,19 @@ public class SavedWordsAdapter extends RecyclerView.Adapter<SavedWordsAdapter.Wo
             saved_words_phonetic_textView = itemView.findViewById(R.id.saved_words_phonetic_textView);
             ll_meanings_container = itemView.findViewById(R.id.ll_meanings_container);
             
+            btn_edit_reader_details = itemView.findViewById(R.id.btn_edit_reader_details);
             btn_audio_saved_word = itemView.findViewById(R.id.btn_audio_saved_word);
             btn_share_saved_word = itemView.findViewById(R.id.btn_share_saved_word);
             btn_pdf_saved_word = itemView.findViewById(R.id.btn_pdf_saved_word);
             btn_copy_saved_word = itemView.findViewById(R.id.btn_copy_saved_word);
+
+            ll_reader_metadata_container = itemView.findViewById(R.id.ll_reader_metadata_container);
+            ll_reader_found = itemView.findViewById(R.id.ll_reader_found);
+            tv_reader_found_text = itemView.findViewById(R.id.tv_reader_found_text);
+            ll_reader_highlight = itemView.findViewById(R.id.ll_reader_highlight);
+            tv_reader_highlight_text = itemView.findViewById(R.id.tv_reader_highlight_text);
+            ll_reader_note = itemView.findViewById(R.id.ll_reader_note);
+            tv_reader_note_text = itemView.findViewById(R.id.tv_reader_note_text);
         }
     }
 }

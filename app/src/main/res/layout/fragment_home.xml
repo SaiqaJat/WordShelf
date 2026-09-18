@@ -254,6 +254,29 @@
                 app:cornerRadius="18dp" />
         </LinearLayout>
 
+        <!-- Skeleton Loading State (shown while API fetch is in progress) -->
+        <include
+            layout="@layout/skeleton_word_result"
+            android:id="@+id/skeleton_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+        <!-- Stale Cache Warning Bar (shown when displaying an offline/cached result) -->
+        <TextView
+            android:id="@+id/stale_warning_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/stale_warning_bg"
+            android:drawablePadding="6dp"
+            android:gravity="center_vertical"
+            android:padding="10dp"
+            android:text="⚠ Showing cached result — check your connection"
+            android:textColor="@color/stale_warning_text"
+            android:textSize="13sp"
+            android:layout_marginBottom="8dp"
+            android:visibility="gone" />
+
         <!-- Searched Word Header Card -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/card_word_header"

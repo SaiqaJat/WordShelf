@@ -22,11 +22,13 @@ public class DictionaryDatabaseHelper extends SQLiteOpenHelper {
 
     private final Context context;
     private static final String DB_NAME = "Dictionary.db";
-    private static final int DB_VERSION = 4;
+    private static final int DB_VERSION = 6;
 
     private static final String TABLE_NAME = "Book_Directory";
     private static final String BOOK_ID = "_id";
     private static final String COLUMN_TITLE = "book_title";
+    private static final String COLUMN_AUTHOR = "book_author";
+    private static final String COLUMN_CREATED_AT = "created_at";
 
     // Dictionary saved words DB
     private static final String TABLE_NAME_1 = "SavedWords";
@@ -34,6 +36,10 @@ public class DictionaryDatabaseHelper extends SQLiteOpenHelper {
     private static final String COLUMN_WORDS = "words";
     private static final String COLUMN_PHONETIC = "phonetic";
     private static final String COLUMN_MEANINGS_JSON = "meanings_json";
+    private static final String COLUMN_CHAPTER = "chapter";
+    private static final String COLUMN_PAGE = "page";
+    private static final String COLUMN_HIGHLIGHT = "highlight";
+    private static final String COLUMN_NOTE = "note";
 
     // Search history DB
     private static final String TABLE_SEARCH_HISTORY = "SearchHistory";
@@ -41,6 +47,13 @@ public class DictionaryDatabaseHelper extends SQLiteOpenHelper {
     private static final String HISTORY_WORD = "history_word";
     private static final String HISTORY_PHONETIC = "history_phonetic";
     private static final String HISTORY_TIMESTAMP = "history_timestamp";
+
+    // Definition Cache table (v6)
+    private static final String TABLE_DEF_CACHE = "DefinitionCache";
+    private static final String CACHE_WORD = "word";
+    private static final String CACHE_RESULT_JSON = "result_json";
+    private static final String CACHE_CACHED_AT = "cached_at";
+    private static final int CACHE_MAX_ENTRIES = 200;
 
     // Legacy columns for migration
     private static final String COLUMN_PARTS_OF_SPEECH = "partsOfSpeech";
@@ -60,7 +73,9 @@ public class DictionaryDatabaseHelper extends SQLiteOpenHelper {
     public void onCreate(SQLiteDatabase db) {
         String query = "CREATE TABLE " + TABLE_NAME + " (" +
                 BOOK_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                COLUMN_TITLE + " TEXT);";
+                COLUMN_TITLE + " TEXT, " +
+                COLUMN_AUTHOR + " TEXT, " +
+                COLUMN_CREATED_AT + " INTEGER);";
         db.execSQL(query);
 
         String query1 = "CREATE TABLE " + TABLE_NAME_1 + " (" +
@@ -68,7 +83,11 @@ public class DictionaryDatabaseHelper extends SQLiteOpenHelper {
                 COLUMN_WORDS + " TEXT, " +
                 COLUMN_PHONETIC + " TEXT, " +
                 COLUMN_MEANINGS_JSON + " TEXT, " +
-                COLUMN_TITLE + " TEXT);";
+                COLUMN_TITLE + " TEXT, " +
+                COLUMN_CHAPTER + " TEXT, " +
+                COLUMN_PAGE + " TEXT, " +
+                COLUMN_HIGHLIGHT + " TEXT, " +
+                COLUMN_NOTE + " TEXT);";
         db.execSQL(query1);
 
         String queryHistory = "CREATE TABLE " + TABLE_SEARCH_HISTORY + " (" +
@@ -77,6 +96,12 @@ public class DictionaryDatabaseHelper extends SQLiteOpenHelper {
                 HISTORY_PHONETIC + " TEXT, " +
                 HISTORY_TIMESTAMP + " INTEGER);";
         db.execSQL(queryHistory);
+
+        String queryDefCache = "CREATE TABLE " + TABLE_DEF_CACHE + " (" +
+                CACHE_WORD + " TEXT PRIMARY KEY, " +
+                CACHE_RESULT_JSON + " TEXT, " +
+                CACHE_CACHED_AT + " INTEGER);";
+        db.execSQL(queryDefCache);
     }
 
     @Override
@@ -173,17 +198,162 @@ public class DictionaryDatabaseHelper extends SQLiteOpenHelper {
                     HISTORY_TIMESTAMP + " INTEGER);";
             db.execSQL(queryHistory);
         }
+
+        if (oldVersion < 5) {
+            try {
+                db.execSQL("ALTER TABLE " + TABLE_NAME + " ADD COLUMN " + COLUMN_AUTHOR + " TEXT;");
+            } catch (Exception ignored) {}
+            try {
+                db.execSQL("ALTER TABLE " + TABLE_NAME + " ADD COLUMN " + COLUMN_CREATED_AT + " INTEGER;");
+            } catch (Exception ignored) {}
+            try {
+                db.execSQL("ALTER TABLE " + TABLE_NAME_1 + " ADD COLUMN " + COLUMN_CHAPTER + " TEXT;");
+            } catch (Exception ignored) {}
+            try {
+                db.execSQL("ALTER TABLE " + TABLE_NAME_1 + " ADD COLUMN " + COLUMN_PAGE + " TEXT;");
+            } catch (Exception ignored) {}
+            try {
+                db.execSQL("ALTER TABLE " + TABLE_NAME_1 + " ADD COLUMN " + COLUMN_HIGHLIGHT + " TEXT;");
+            } catch (Exception ignored) {}
+            try {
+                db.execSQL("ALTER TABLE " + TABLE_NAME_1 + " ADD COLUMN " + COLUMN_NOTE + " TEXT;");
+            } catch (Exception ignored) {}
+        }
+
+        if (oldVersion < 6) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS " + TABLE_DEF_CACHE + " (" +
+                    CACHE_WORD + " TEXT PRIMARY KEY, " +
+                    CACHE_RESULT_JSON + " TEXT, " +
+                    CACHE_CACHED_AT + " INTEGER);");
+        }
+    }
+
+    // ── Definition Cache Methods (v6) ──────────────────────────────────────────
+
+    /**
+     * Saves (upserts) a word's definition result list to the persistent cache.
+     * Automatically prunes oldest entries if the table exceeds CACHE_MAX_ENTRIES.
+     */
+    public void saveDefinitionCache(String word, List<WordResultData> data) {
+        if (word == null || data == null || data.isEmpty()) return;
+        String key = word.trim().toLowerCase();
+        String json = gson.toJson(data);
+        SQLiteDatabase db = this.getWritableDatabase();
+        try {
+            ContentValues cv = new ContentValues();
+            cv.put(CACHE_WORD, key);
+            cv.put(CACHE_RESULT_JSON, json);
+            cv.put(CACHE_CACHED_AT, System.currentTimeMillis());
+            db.insertWithOnConflict(TABLE_DEF_CACHE, null, cv, SQLiteDatabase.CONFLICT_REPLACE);
+            pruneDefinitionCacheInternal(db);
+        } catch (Exception e) {
+            Log.e("DB_CACHE", "Failed to save definition cache for: " + key, e);
+        } finally {
+            db.close();
+        }
+    }
+
+    /**
+     * Returns the cached definition list for {@code word}, or {@code null} if not cached.
+     */
+    public List<WordResultData> getDefinitionCache(String word) {
+        if (word == null) return null;
+        String key = word.trim().toLowerCase();
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = null;
+        try {
+            cursor = db.rawQuery(
+                    "SELECT " + CACHE_RESULT_JSON + " FROM " + TABLE_DEF_CACHE +
+                    " WHERE " + CACHE_WORD + " = ? LIMIT 1",
+                    new String[]{key});
+            if (cursor != null && cursor.moveToFirst()) {
+                String json = cursor.getString(0);
+                if (json != null && !json.isEmpty()) {
+                    Type type = new TypeToken<List<WordResultData>>(){}.getType();
+                    return gson.fromJson(json, type);
+                }
+            }
+        } catch (Exception e) {
+            Log.e("DB_CACHE", "Failed to read definition cache for: " + key, e);
+        } finally {
+            if (cursor != null) cursor.close();
+            db.close();
+        }
+        return null;
+    }
+
+    /**
+     * Deletes oldest cache entries beyond {@code maxEntries}.
+     * Call this after a successful cache write to bound table size.
+     */
+    public void pruneDefinitionCache(int maxEntries) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        try {
+            pruneDefinitionCacheInternal(db);
+        } finally {
+            db.close();
+        }
+    }
+
+    private void pruneDefinitionCacheInternal(SQLiteDatabase db) {
+        try {
+            db.execSQL(
+                "DELETE FROM " + TABLE_DEF_CACHE +
+                " WHERE " + CACHE_WORD + " NOT IN (" +
+                "  SELECT " + CACHE_WORD + " FROM " + TABLE_DEF_CACHE +
+                "  ORDER BY " + CACHE_CACHED_AT + " DESC" +
+                "  LIMIT " + CACHE_MAX_ENTRIES + ")"
+            );
+        } catch (Exception e) {
+            Log.e("DB_CACHE", "Failed to prune definition cache", e);
+        }
     }
 
     public boolean addBook(String title) {
+        return addBook(title, null);
+    }
+
+    public boolean addBook(String title, String author) {
         if (title == null || title.trim().isEmpty()) return false;
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues cv = new ContentValues();
         cv.put(COLUMN_TITLE, title.trim());
+        cv.put(COLUMN_AUTHOR, author != null && !author.trim().isEmpty() ? author.trim() : null);
+        cv.put(COLUMN_CREATED_AT, System.currentTimeMillis());
 
         long result = db.insert(TABLE_NAME, null, cv);
         db.close();
         return result != -1;
+    }
+
+    public String getBookAuthor(String title) {
+        if (title == null) return null;
+        SQLiteDatabase db = this.getReadableDatabase();
+        String author = null;
+        Cursor cursor = db.rawQuery("SELECT " + COLUMN_AUTHOR + " FROM " + TABLE_NAME + " WHERE " + COLUMN_TITLE + " = ? LIMIT 1", new String[]{title.trim()});
+        if (cursor != null) {
+            if (cursor.moveToFirst()) {
+                author = cursor.getString(0);
+            }
+            cursor.close();
+        }
+        db.close();
+        return author;
+    }
+
+    public Long getBookCreatedAt(String title) {
+        if (title == null) return null;
+        SQLiteDatabase db = this.getReadableDatabase();
+        Long createdAt = null;
+        Cursor cursor = db.rawQuery("SELECT " + COLUMN_CREATED_AT + " FROM " + TABLE_NAME + " WHERE " + COLUMN_TITLE + " = ? LIMIT 1", new String[]{title.trim()});
+        if (cursor != null) {
+            if (cursor.moveToFirst() && !cursor.isNull(0)) {
+                createdAt = cursor.getLong(0);
+            }
+            cursor.close();
+        }
+        db.close();
+        return createdAt;
     }
     
     Cursor readAllData() {
@@ -214,12 +384,19 @@ public class DictionaryDatabaseHelper extends SQLiteOpenHelper {
     }
 
     void updateBooks(String old_title, String new_title) {
+        updateBooks(old_title, new_title, null);
+    }
+
+    void updateBooks(String old_title, String new_title, String new_author) {
         if (old_title == null || new_title == null || new_title.trim().isEmpty()) return;
         SQLiteDatabase db = this.getWritableDatabase();
         db.beginTransaction();
         try {
             ContentValues values = new ContentValues();
             values.put(COLUMN_TITLE, new_title.trim());
+            if (new_author != null) {
+                values.put(COLUMN_AUTHOR, new_author.trim().isEmpty() ? null : new_author.trim());
+            }
 
             db.update(TABLE_NAME, values, COLUMN_TITLE + " = ?", new String[]{old_title});
 
@@ -293,6 +470,10 @@ public class DictionaryDatabaseHelper extends SQLiteOpenHelper {
                 ContentValues values = new ContentValues();
                 values.put(COLUMN_PHONETIC, model.getPhonetic());
                 values.put(COLUMN_MEANINGS_JSON, gson.toJson(model.getMeanings()));
+                if (model.getChapter() != null) values.put(COLUMN_CHAPTER, model.getChapter().trim());
+                if (model.getPage() != null) values.put(COLUMN_PAGE, model.getPage().trim());
+                if (model.getHighlight() != null) values.put(COLUMN_HIGHLIGHT, model.getHighlight().trim());
+                if (model.getNote() != null) values.put(COLUMN_NOTE, model.getNote().trim());
                 
                 int rows = db.update(TABLE_NAME_1, values, COLUMN_ID1 + " = ?", new String[]{String.valueOf(id)});
                 cursor.close();
@@ -305,6 +486,10 @@ public class DictionaryDatabaseHelper extends SQLiteOpenHelper {
                 values.put(COLUMN_PHONETIC, model.getPhonetic());
                 values.put(COLUMN_MEANINGS_JSON, gson.toJson(model.getMeanings()));
                 values.put(COLUMN_TITLE, book_title.trim());
+                values.put(COLUMN_CHAPTER, model.getChapter() != null ? model.getChapter().trim() : null);
+                values.put(COLUMN_PAGE, model.getPage() != null ? model.getPage().trim() : null);
+                values.put(COLUMN_HIGHLIGHT, model.getHighlight() != null ? model.getHighlight().trim() : null);
+                values.put(COLUMN_NOTE, model.getNote() != null ? model.getNote().trim() : null);
 
                 long result = db.insert(TABLE_NAME_1, null, values);
                 success = (result != -1);
@@ -318,6 +503,19 @@ public class DictionaryDatabaseHelper extends SQLiteOpenHelper {
         return success;
     }
 
+    public boolean updateWordReaderDetails(int id, String chapter, String page, String highlight, String note) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(COLUMN_CHAPTER, (chapter != null && !chapter.trim().isEmpty()) ? chapter.trim() : null);
+        values.put(COLUMN_PAGE, (page != null && !page.trim().isEmpty()) ? page.trim() : null);
+        values.put(COLUMN_HIGHLIGHT, (highlight != null && !highlight.trim().isEmpty()) ? highlight.trim() : null);
+        values.put(COLUMN_NOTE, (note != null && !note.trim().isEmpty()) ? note.trim() : null);
+
+        int rows = db.update(TABLE_NAME_1, values, COLUMN_ID1 + " = ?", new String[]{String.valueOf(id)});
+        db.close();
+        return rows > 0;
+    }
+
     public List<DictionaryModel> getSavedWords(String bookTitle) {
         List<DictionaryModel> list = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
@@ -326,21 +524,31 @@ public class DictionaryDatabaseHelper extends SQLiteOpenHelper {
                 new String[]{bookTitle}
         );
 
-        if (cursor.moveToFirst()) {
+        if (cursor != null && cursor.moveToFirst()) {
+            int chapterIdx = cursor.getColumnIndex(COLUMN_CHAPTER);
+            int pageIdx = cursor.getColumnIndex(COLUMN_PAGE);
+            int highlightIdx = cursor.getColumnIndex(COLUMN_HIGHLIGHT);
+            int noteIdx = cursor.getColumnIndex(COLUMN_NOTE);
+
             do {
                 int id = cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_ID1));
                 String word = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_WORDS));
                 String phonetic = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PHONETIC));
                 String meaningsJson = cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_MEANINGS_JSON));
                 
+                String chapter = (chapterIdx >= 0 && !cursor.isNull(chapterIdx)) ? cursor.getString(chapterIdx) : null;
+                String page = (pageIdx >= 0 && !cursor.isNull(pageIdx)) ? cursor.getString(pageIdx) : null;
+                String highlight = (highlightIdx >= 0 && !cursor.isNull(highlightIdx)) ? cursor.getString(highlightIdx) : null;
+                String note = (noteIdx >= 0 && !cursor.isNull(noteIdx)) ? cursor.getString(noteIdx) : null;
+
                 Type type = new TypeToken<List<Meaning>>(){}.getType();
                 List<Meaning> meanings = gson.fromJson(meaningsJson, type);
 
-                list.add(new DictionaryModel(id, word, phonetic, meanings));
+                list.add(new DictionaryModel(id, word, phonetic, meanings, chapter, page, highlight, note));
             } while (cursor.moveToNext());
+            cursor.close();
         }
 
-        cursor.close();
         db.close();
         return list;
     }

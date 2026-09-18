@@ -22,17 +22,39 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 public class PdfExporter {
 
+    private static final String TAG = "PdfExporter";
+
+    // Standard A4 dimensions in points (72 points per inch)
+    private static final int PAGE_WIDTH = 595;
+    private static final int PAGE_HEIGHT = 842;
+    private static final int MARGIN = 48;
+    private static final int USABLE_WIDTH = PAGE_WIDTH - (MARGIN * 2);
+
+    // Literary Print-Friendly Color Palette
+    private static final int COLOR_INK_PRIMARY = Color.parseColor("#1E293B");      // Deep charcoal ink
+    private static final int COLOR_INK_SECONDARY = Color.parseColor("#475569");    // Subtitle & secondary
+    private static final int COLOR_INK_MUTED = Color.parseColor("#64748B");        // Meta & details
+    private static final int COLOR_BRONZE_ACCENT = Color.parseColor("#8E6E53");    // Warm literary bronze
+    private static final int COLOR_BORDER_HAIRLINE = Color.parseColor("#E2E8F0");  // Clean subtle rule
+    private static final int COLOR_HIGHLIGHT_BG = Color.parseColor("#F8F6F2");     // Subtle warm quote tint
+    private static final int COLOR_BADGE_BG = Color.parseColor("#F1F5F9");         // POS badge pill
+    private static final int COLOR_BADGE_TEXT = Color.parseColor("#2C3E50");       // POS badge label
+
     public static void exportSingleWord(Context context, DictionaryModel model) {
         if (model == null) return;
         List<DictionaryModel> list = new ArrayList<>();
         list.add(model);
-        exportBookCollection(context, model.getWord() != null ? model.getWord() + " Definition" : "Vocabulary Word", list);
+        String title = (model.getWord() != null && !model.getWord().trim().isEmpty())
+                ? model.getWord().trim()
+                : "Vocabulary Word";
+        exportBookCollection(context, title, list);
     }
 
     public static void exportBookCollection(Context context, String collectionTitle, List<DictionaryModel> wordList) {
@@ -40,6 +62,11 @@ public class PdfExporter {
             Toast.makeText(context, "No saved words to export as PDF", Toast.LENGTH_SHORT).show();
             return;
         }
+
+        // Query book metadata from database
+        DictionaryDatabaseHelper db = new DictionaryDatabaseHelper(context);
+        String bookAuthor = db.getBookAuthor(collectionTitle);
+        Long bookCreatedAt = db.getBookCreatedAt(collectionTitle);
 
         // Sort collection alphabetically
         List<DictionaryModel> sortedList = new ArrayList<>(wordList);
@@ -49,23 +76,6 @@ public class PdfExporter {
             return w1.compareToIgnoreCase(w2);
         });
 
-        PdfDocument pdfDocument = new PdfDocument();
-
-        int pageWidth = 595;  // A4 width in points
-        int pageHeight = 842; // A4 height in points
-        int margin = 48;
-        int usableWidth = pageWidth - (margin * 2);
-
-        // --- PRINT-FRIENDLY COLOR PALETTE ---
-        int colorNavy = Color.parseColor("#2C3E50");
-        int colorBronze = Color.parseColor("#8E6E53");
-        int colorDarkText = Color.parseColor("#1E293B");
-        int colorSecondaryText = Color.parseColor("#64748B");
-        int colorBodyText = Color.parseColor("#334155");
-        int colorExampleText = Color.parseColor("#475569");
-        int colorBorder = Color.parseColor("#E2E8F0");
-        int colorBadgeBg = Color.parseColor("#F1F5F9");
-
         // --- TYPOGRAPHY & PAINTS ---
         Typeface serifBold = Typeface.create(Typeface.SERIF, Typeface.BOLD);
         Typeface serifNormal = Typeface.create(Typeface.SERIF, Typeface.NORMAL);
@@ -73,312 +83,475 @@ public class PdfExporter {
         Typeface sansBold = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD);
         Typeface sansNormal = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL);
 
-        TextPaint coverBrandPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-        coverBrandPaint.setColor(colorBronze);
-        coverBrandPaint.setTypeface(sansBold);
-        coverBrandPaint.setTextSize(11);
-        coverBrandPaint.setTextAlign(Paint.Align.CENTER);
+        TextPaint brandPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        brandPaint.setColor(COLOR_BRONZE_ACCENT);
+        brandPaint.setTypeface(sansBold);
+        brandPaint.setTextSize(10f);
+        brandPaint.setTextAlign(Paint.Align.CENTER);
 
         TextPaint coverTitlePaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-        coverTitlePaint.setColor(colorNavy);
+        coverTitlePaint.setColor(COLOR_INK_PRIMARY);
         coverTitlePaint.setTypeface(serifBold);
-        coverTitlePaint.setTextSize(30);
+        coverTitlePaint.setTextSize(28f);
         coverTitlePaint.setTextAlign(Paint.Align.CENTER);
 
         TextPaint coverSubPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-        coverSubPaint.setColor(colorSecondaryText);
+        coverSubPaint.setColor(COLOR_INK_SECONDARY);
         coverSubPaint.setTypeface(serifItalic);
-        coverSubPaint.setTextSize(15);
+        coverSubPaint.setTextSize(14f);
         coverSubPaint.setTextAlign(Paint.Align.CENTER);
 
         TextPaint coverMetaPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-        coverMetaPaint.setColor(colorDarkText);
+        coverMetaPaint.setColor(COLOR_INK_PRIMARY);
         coverMetaPaint.setTypeface(sansNormal);
-        coverMetaPaint.setTextSize(12);
+        coverMetaPaint.setTextSize(11.5f);
+        coverMetaPaint.setTextAlign(Paint.Align.CENTER);
 
         TextPaint sectionTitlePaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-        sectionTitlePaint.setColor(colorNavy);
+        sectionTitlePaint.setColor(COLOR_INK_PRIMARY);
         sectionTitlePaint.setTypeface(serifBold);
-        sectionTitlePaint.setTextSize(20);
+        sectionTitlePaint.setTextSize(19f);
+
+        TextPaint sectionSubPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        sectionSubPaint.setColor(COLOR_INK_MUTED);
+        sectionSubPaint.setTypeface(serifItalic);
+        sectionSubPaint.setTextSize(11f);
+
+        TextPaint labelPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        labelPaint.setColor(COLOR_BRONZE_ACCENT);
+        labelPaint.setTypeface(sansBold);
+        labelPaint.setTextSize(8.5f);
 
         TextPaint wordTitlePaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-        wordTitlePaint.setColor(colorDarkText);
+        wordTitlePaint.setColor(COLOR_INK_PRIMARY);
         wordTitlePaint.setTypeface(serifBold);
-        wordTitlePaint.setTextSize(16);
+        wordTitlePaint.setTextSize(16f);
 
         TextPaint phoneticPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-        phoneticPaint.setColor(colorSecondaryText);
+        phoneticPaint.setColor(COLOR_INK_MUTED);
         phoneticPaint.setTypeface(serifItalic);
-        phoneticPaint.setTextSize(12);
+        phoneticPaint.setTextSize(11.5f);
 
         TextPaint posBadgePaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-        posBadgePaint.setColor(colorNavy);
+        posBadgePaint.setColor(COLOR_BADGE_TEXT);
         posBadgePaint.setTypeface(sansBold);
-        posBadgePaint.setTextSize(9);
+        posBadgePaint.setTextSize(8.5f);
 
         TextPaint bodyPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-        bodyPaint.setColor(colorBodyText);
+        bodyPaint.setColor(COLOR_INK_PRIMARY);
         bodyPaint.setTypeface(serifNormal);
-        bodyPaint.setTextSize(11);
+        bodyPaint.setTextSize(10.5f);
 
         TextPaint examplePaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-        examplePaint.setColor(colorExampleText);
+        examplePaint.setColor(COLOR_INK_SECONDARY);
         examplePaint.setTypeface(serifItalic);
-        examplePaint.setTextSize(10.5f);
+        examplePaint.setTextSize(10f);
+
+        TextPaint highlightPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        highlightPaint.setColor(COLOR_INK_PRIMARY);
+        highlightPaint.setTypeface(serifItalic);
+        highlightPaint.setTextSize(10.5f);
+
+        TextPaint notePaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        notePaint.setColor(COLOR_INK_PRIMARY);
+        notePaint.setTypeface(serifNormal);
+        notePaint.setTextSize(10f);
 
         TextPaint metaPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-        metaPaint.setColor(colorSecondaryText);
+        metaPaint.setColor(COLOR_INK_MUTED);
         metaPaint.setTypeface(sansNormal);
         metaPaint.setTextSize(9.5f);
 
         TextPaint headerFooterPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-        headerFooterPaint.setColor(Color.parseColor("#94A3B8"));
+        headerFooterPaint.setColor(COLOR_INK_MUTED);
         headerFooterPaint.setTypeface(sansNormal);
-        headerFooterPaint.setTextSize(9);
+        headerFooterPaint.setTextSize(9f);
 
         Paint dividerPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        dividerPaint.setColor(colorBorder);
-        dividerPaint.setStrokeWidth(0.75f);
+        dividerPaint.setColor(COLOR_BORDER_HAIRLINE);
+        dividerPaint.setStrokeWidth(0.8f);
 
-        Paint framePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        framePaint.setColor(colorNavy);
-        framePaint.setStyle(Paint.Style.STROKE);
-        framePaint.setStrokeWidth(1.5f);
+        Paint bronzeLinePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        bronzeLinePaint.setColor(COLOR_BRONZE_ACCENT);
+        bronzeLinePaint.setStrokeWidth(1.2f);
 
         Paint badgeBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        badgeBgPaint.setColor(colorBadgeBg);
+        badgeBgPaint.setColor(COLOR_BADGE_BG);
         badgeBgPaint.setStyle(Paint.Style.FILL);
 
-        // --- PASS 1: SMART PAGINATION & PAGE INDEXING ---
-        boolean hasTOC = sortedList.size() >= 5;
-        int currentPage = 1;
-        int contentStartPage = hasTOC ? 3 : 2;
+        Paint highlightBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        highlightBgPaint.setColor(COLOR_HIGHLIGHT_BG);
+        highlightBgPaint.setStyle(Paint.Style.FILL);
 
-        currentPage = contentStartPage;
-        int currentY = margin + 35; // Reserve for top header
+        // =========================================================================
+        // PASS 1: PRE-PAGINATION & SMART PLANNING
+        // =========================================================================
 
-        Map<Integer, Integer> wordPageMap = new HashMap<>(); // Word index -> Page number
+        // Page 1: Cover Page
+        // Page 2: Book Information Page
+        // Page 3..X: Word Index
+        // Page (X+1)..Y: Detailed Vocabulary Entries
+        // Page (Y+1)..Z: Words at a Glance
+        // Page (Z+1): Final Closing Page
+
+        // 1. Calculate Index Pagination
+        // Group words by first letter
+        Map<Character, List<DictionaryModel>> letterGroups = new LinkedHashMap<>();
+        for (DictionaryModel model : sortedList) {
+            String word = model.getWord() != null ? model.getWord().trim() : "";
+            char firstLetter = word.isEmpty() ? '#' : Character.toUpperCase(word.charAt(0));
+            if (!letterGroups.containsKey(firstLetter)) {
+                letterGroups.put(firstLetter, new ArrayList<>());
+            }
+            letterGroups.get(firstLetter).add(model);
+        }
+
+        int indexUsableHeight = PAGE_HEIGHT - (MARGIN * 2) - 80;
+        int estimatedIndexHeight = 0;
+        for (Map.Entry<Character, List<DictionaryModel>> entry : letterGroups.entrySet()) {
+            estimatedIndexHeight += 26; // Letter header
+            estimatedIndexHeight += (entry.getValue().size() * 18); // Word row
+            estimatedIndexHeight += 8; // Spacing
+        }
+        int numIndexPages = Math.max(1, (int) Math.ceil((double) estimatedIndexHeight / indexUsableHeight));
+
+        int firstEntryPage = 2 + numIndexPages + 1;
+
+        // 2. Simulate Detailed Vocabulary Entries to determine exact starting page for each word
+        int simPage = firstEntryPage;
+        int simY = MARGIN + 40;
+        int contentMaxY = PAGE_HEIGHT - MARGIN - 40;
+
+        Map<String, Integer> wordPageMap = new HashMap<>();
 
         for (int i = 0; i < sortedList.size(); i++) {
             DictionaryModel item = sortedList.get(i);
-            int entryHeight = calculateEntryHeight(item, bodyPaint, examplePaint, metaPaint, usableWidth);
+            int entryHeight = calculateEntryHeight(item, wordTitlePaint, bodyPaint, examplePaint, highlightPaint, notePaint, metaPaint, USABLE_WIDTH);
 
-            if (currentY + entryHeight > pageHeight - margin - 35) {
-                currentPage++;
-                currentY = margin + 35;
+            if (simY + entryHeight > contentMaxY) {
+                simPage++;
+                simY = MARGIN + 40;
             }
 
-            wordPageMap.put(i, currentPage);
-            currentY += entryHeight + 16;
+            String wordKey = item.getWord() != null ? item.getWord().trim().toLowerCase(Locale.US) : ("word_" + i);
+            wordPageMap.put(wordKey, simPage);
+            simY += entryHeight + 18; // Spacing between entries
         }
 
-        int totalPages = currentPage;
+        int lastEntryPage = simPage;
 
-        // --- PASS 2: RENDER PDF PAGES ---
+        // 3. Simulate Words at a Glance Pagination
+        int glanceStartPage = lastEntryPage + 1;
+        int glanceRowHeight = 22;
+        int glanceUsableHeight = PAGE_HEIGHT - (MARGIN * 2) - 80;
+        int totalGlanceRowsHeight = sortedList.size() * glanceRowHeight;
+        int numGlancePages = Math.max(1, (int) Math.ceil((double) totalGlanceRowsHeight / glanceUsableHeight));
+        int lastGlancePage = glanceStartPage + numGlancePages - 1;
 
-        // 1. RENDER COVER PAGE
-        PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, 1).create();
+        // 4. Final Closing Page
+        int finalClosingPage = lastGlancePage + 1;
+        int totalDocumentPages = finalClosingPage;
+
+        // =========================================================================
+        // PASS 2: RENDER COMPLETE PDF DOCUMENT
+        // =========================================================================
+        PdfDocument pdfDocument = new PdfDocument();
+
+        // -------------------------------------------------------------------------
+        // 1. ELEGANT COVER PAGE (Page 1)
+        // -------------------------------------------------------------------------
+        PdfDocument.PageInfo pageInfo = new PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, 1).create();
         PdfDocument.Page page = pdfDocument.startPage(pageInfo);
         Canvas canvas = page.getCanvas();
-
-        // Draw background & frame
         canvas.drawColor(Color.WHITE);
-        canvas.drawRect(margin - 10, margin - 10, pageWidth - margin + 10, pageHeight - margin + 10, framePaint);
-        canvas.drawRect(margin - 14, margin - 14, pageWidth - margin + 14, pageHeight - margin + 14, framePaint);
 
-        canvas.drawText("WORDSHELF — PERSONAL VOCABULARY", pageWidth / 2f, pageHeight / 4f - 20, coverBrandPaint);
-        canvas.drawText(collectionTitle, pageWidth / 2f, pageHeight / 4f + 25, coverTitlePaint);
-        canvas.drawText("Personal Reading Vocabulary Collection", pageWidth / 2f, pageHeight / 4f + 55, coverSubPaint);
+        // Subtle Framing
+        canvas.drawLine(MARGIN + 20, MARGIN + 20, PAGE_WIDTH - MARGIN - 20, MARGIN + 20, dividerPaint);
+        canvas.drawLine(MARGIN + 20, PAGE_HEIGHT - MARGIN - 20, PAGE_WIDTH - MARGIN - 20, PAGE_HEIGHT - MARGIN - 20, dividerPaint);
 
-        canvas.drawLine(margin + 60, pageHeight / 4f + 80, pageWidth - margin - 60, pageHeight / 4f + 80, dividerPaint);
+        // Brand
+        canvas.drawText("W O R D S H E L F", PAGE_WIDTH / 2f, PAGE_HEIGHT * 0.18f, brandPaint);
 
-        // Metadata Card
-        float cardTop = pageHeight / 2f + 20;
-        float cardLeft = margin + 40;
-        float cardRight = pageWidth - margin - 40;
-        float cardBottom = cardTop + 100;
+        // Title Block
+        canvas.drawText("MY VOCABULARY", PAGE_WIDTH / 2f, PAGE_HEIGHT * 0.28f, coverSubPaint);
+        canvas.drawText("A Personal Collection", PAGE_WIDTH / 2f, PAGE_HEIGHT * 0.31f, sectionSubPaint);
 
-        RectF cardRect = new RectF(cardLeft, cardTop, cardRight, cardBottom);
-        canvas.drawRoundRect(cardRect, 12, 12, badgeBgPaint);
-        canvas.drawRoundRect(cardRect, 12, 12, framePaint);
+        canvas.drawLine(PAGE_WIDTH / 2f - 40, PAGE_HEIGHT * 0.34f, PAGE_WIDTH / 2f + 40, PAGE_HEIGHT * 0.34f, bronzeLinePaint);
 
-        String dateStr = new SimpleDateFormat("MMMM d, yyyy", Locale.US).format(new Date());
-        canvas.drawText("Collection Size: " + sortedList.size() + " Unique Word(s)", cardLeft + 24, cardTop + 38, coverMetaPaint);
-        canvas.drawText("Export Date: " + dateStr, cardLeft + 24, cardTop + 68, coverMetaPaint);
+        // Book / Collection Title
+        canvas.drawText(collectionTitle, PAGE_WIDTH / 2f, PAGE_HEIGHT * 0.42f, coverTitlePaint);
 
-        canvas.drawText("Generated with WordShelf App", pageWidth / 2f, pageHeight - margin - 20, headerFooterPaint);
-        pdfDocument.finishPage(page);
-
-        // 2. RENDER TABLE OF CONTENTS (IF 5+ WORDS)
-        if (hasTOC) {
-            pageInfo = new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, 2).create();
-            page = pdfDocument.startPage(pageInfo);
-            canvas = page.getCanvas();
-            canvas.drawColor(Color.WHITE);
-
-            drawHeader(canvas, collectionTitle, pageWidth, margin, headerFooterPaint, dividerPaint);
-            drawFooter(canvas, 2, totalPages, pageWidth, pageHeight, margin, headerFooterPaint);
-
-            canvas.drawText("Table of Contents", margin, margin + 40, sectionTitlePaint);
-            canvas.drawLine(margin, margin + 48, pageWidth - margin, margin + 48, dividerPaint);
-
-            int tocY = margin + 70;
-            TextPaint dotsPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-            dotsPaint.setColor(colorBorder);
-            dotsPaint.setTypeface(sansNormal);
-            dotsPaint.setTextSize(10);
-
-            for (int i = 0; i < sortedList.size(); i++) {
-                if (tocY > pageHeight - margin - 50) {
-                    break; // Keep TOC concise on single page
-                }
-
-                String wordStr = (i + 1) + ". " + (sortedList.get(i).getWord() != null ? sortedList.get(i).getWord() : "");
-                int targetPage = wordPageMap.containsKey(i) ? wordPageMap.get(i) : 3;
-
-                canvas.drawText(wordStr, margin, tocY, bodyPaint);
-                String pageStr = String.valueOf(targetPage);
-                float pageStrWidth = bodyPaint.measureText(pageStr);
-                canvas.drawText(pageStr, pageWidth - margin - pageStrWidth, tocY, bodyPaint);
-
-                float wordWidth = bodyPaint.measureText(wordStr);
-                float dotsStart = margin + wordWidth + 10;
-                float dotsEnd = pageWidth - margin - pageStrWidth - 10;
-
-                if (dotsEnd > dotsStart) {
-                    StringBuilder dots = new StringBuilder();
-                    while (dotsPaint.measureText(dots.toString() + ". ") < (dotsEnd - dotsStart)) {
-                        dots.append(". ");
-                    }
-                    canvas.drawText(dots.toString(), dotsStart, tocY, dotsPaint);
-                }
-
-                tocY += 20;
-            }
-
-            pdfDocument.finishPage(page);
+        float currentCoverY = PAGE_HEIGHT * 0.46f;
+        if (bookAuthor != null && !bookAuthor.trim().isEmpty()) {
+            canvas.drawText("by " + bookAuthor.trim(), PAGE_WIDTH / 2f, currentCoverY, coverSubPaint);
+            currentCoverY += 28;
         }
 
-        // 3. RENDER CONTENT PAGES
-        currentPage = contentStartPage;
-        pageInfo = new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, currentPage).create();
+        // Word Count Badge
+        String countStr = sortedList.size() == 1 ? "1 Word Collected" : sortedList.size() + " Words Collected";
+        canvas.drawText(countStr, PAGE_WIDTH / 2f, currentCoverY + 10, coverMetaPaint);
+
+        // Footer block on cover
+        String exportDateStr = new SimpleDateFormat("MMMM d, yyyy", Locale.US).format(new Date());
+        canvas.drawText("Created with WordShelf", PAGE_WIDTH / 2f, PAGE_HEIGHT - MARGIN - 50, brandPaint);
+        canvas.drawText(exportDateStr, PAGE_WIDTH / 2f, PAGE_HEIGHT - MARGIN - 36, headerFooterPaint);
+
+        pdfDocument.finishPage(page);
+
+        // -------------------------------------------------------------------------
+        // 2. BOOK INFORMATION PAGE (Page 2)
+        // -------------------------------------------------------------------------
+        pageInfo = new PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, 2).create();
         page = pdfDocument.startPage(pageInfo);
         canvas = page.getCanvas();
         canvas.drawColor(Color.WHITE);
 
-        drawHeader(canvas, collectionTitle, pageWidth, margin, headerFooterPaint, dividerPaint);
-        drawFooter(canvas, currentPage, totalPages, pageWidth, pageHeight, margin, headerFooterPaint);
+        drawHeader(canvas, collectionTitle, MARGIN, headerFooterPaint, dividerPaint);
+        drawFooter(canvas, 2, totalDocumentPages, MARGIN, headerFooterPaint);
 
-        currentY = margin + 35;
+        float infoY = MARGIN + 40;
+        canvas.drawText("BOOK INFORMATION", MARGIN, infoY, sectionTitlePaint);
+        canvas.drawText("A snapshot of this personal reading journal", MARGIN, infoY + 16, sectionSubPaint);
+        canvas.drawLine(MARGIN, infoY + 28, PAGE_WIDTH - MARGIN, infoY + 28, dividerPaint);
 
-        for (int i = 0; i < sortedList.size(); i++) {
-            DictionaryModel item = sortedList.get(i);
-            int entryHeight = calculateEntryHeight(item, bodyPaint, examplePaint, metaPaint, usableWidth);
+        infoY += 60;
+        drawInfoRow(canvas, "TITLE", collectionTitle, MARGIN, infoY, labelPaint, bodyPaint, dividerPaint);
+        infoY += 56;
 
-            if (currentY + entryHeight > pageHeight - margin - 35) {
+        if (bookAuthor != null && !bookAuthor.trim().isEmpty()) {
+            drawInfoRow(canvas, "AUTHOR", bookAuthor.trim(), MARGIN, infoY, labelPaint, bodyPaint, dividerPaint);
+            infoY += 56;
+        }
+
+        drawInfoRow(canvas, "WORDS COLLECTED", String.valueOf(sortedList.size()), MARGIN, infoY, labelPaint, bodyPaint, dividerPaint);
+        infoY += 56;
+
+        if (bookCreatedAt != null && bookCreatedAt > 0) {
+            String createdStr = new SimpleDateFormat("MMMM d, yyyy", Locale.US).format(new Date(bookCreatedAt));
+            drawInfoRow(canvas, "CREATED", createdStr, MARGIN, infoY, labelPaint, bodyPaint, dividerPaint);
+            infoY += 56;
+        }
+
+        drawInfoRow(canvas, "EXPORTED", exportDateStr, MARGIN, infoY, labelPaint, bodyPaint, dividerPaint);
+
+        pdfDocument.finishPage(page);
+
+        // -------------------------------------------------------------------------
+        // 3. WORD INDEX (Page 3 to 2 + numIndexPages)
+        // -------------------------------------------------------------------------
+        int indexCurrentPage = 3;
+        pageInfo = new PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, indexCurrentPage).create();
+        page = pdfDocument.startPage(pageInfo);
+        canvas = page.getCanvas();
+        canvas.drawColor(Color.WHITE);
+
+        drawHeader(canvas, collectionTitle, MARGIN, headerFooterPaint, dividerPaint);
+        drawFooter(canvas, indexCurrentPage, totalDocumentPages, MARGIN, headerFooterPaint);
+
+        float indexY = MARGIN + 40;
+        canvas.drawText("WORD INDEX", MARGIN, indexY, sectionTitlePaint);
+        canvas.drawText("Alphabetical index of words and their location", MARGIN, indexY + 16, sectionSubPaint);
+        canvas.drawLine(MARGIN, indexY + 28, PAGE_WIDTH - MARGIN, indexY + 28, dividerPaint);
+
+        indexY += 50;
+
+        TextPaint indexLetterPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        indexLetterPaint.setColor(COLOR_BRONZE_ACCENT);
+        indexLetterPaint.setTypeface(serifBold);
+        indexLetterPaint.setTextSize(14f);
+
+        TextPaint dotPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        dotPaint.setColor(COLOR_BORDER_HAIRLINE);
+        dotPaint.setTypeface(sansNormal);
+        dotPaint.setTextSize(9.5f);
+
+        for (Map.Entry<Character, List<DictionaryModel>> entry : letterGroups.entrySet()) {
+            int groupHeight = 24 + (entry.getValue().size() * 18);
+            if (indexY + groupHeight > PAGE_HEIGHT - MARGIN - 40) {
                 pdfDocument.finishPage(page);
-                currentPage++;
-
-                pageInfo = new PdfDocument.PageInfo.Builder(pageWidth, pageHeight, currentPage).create();
+                indexCurrentPage++;
+                pageInfo = new PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, indexCurrentPage).create();
                 page = pdfDocument.startPage(pageInfo);
                 canvas = page.getCanvas();
                 canvas.drawColor(Color.WHITE);
 
-                drawHeader(canvas, collectionTitle, pageWidth, margin, headerFooterPaint, dividerPaint);
-                drawFooter(canvas, currentPage, totalPages, pageWidth, pageHeight, margin, headerFooterPaint);
+                drawHeader(canvas, collectionTitle, MARGIN, headerFooterPaint, dividerPaint);
+                drawFooter(canvas, indexCurrentPage, totalDocumentPages, MARGIN, headerFooterPaint);
 
-                currentY = margin + 35;
+                indexY = MARGIN + 40;
             }
 
-            // --- DRAW WORD ENTRY ---
-            String wordStr = (i + 1) + ". " + (item.getWord() != null ? item.getWord().trim() : "");
-            String phoneticStr = item.getPhonetic() != null ? item.getPhonetic().trim() : "";
+            // Letter Header
+            canvas.drawText(String.valueOf(entry.getKey()), MARGIN, indexY, indexLetterPaint);
+            canvas.drawLine(MARGIN + 18, indexY - 4, MARGIN + 60, indexY - 4, dividerPaint);
+            indexY += 20;
 
-            canvas.drawText(wordStr, margin, currentY + 14, wordTitlePaint);
-            if (!phoneticStr.isEmpty()) {
-                float titleWidth = wordTitlePaint.measureText(wordStr);
-                canvas.drawText("  " + phoneticStr, margin + titleWidth, currentY + 14, phoneticPaint);
-            }
+            // Words under letter
+            for (DictionaryModel model : entry.getValue()) {
+                String word = model.getWord() != null ? model.getWord().trim() : "";
+                String wordKey = word.toLowerCase(Locale.US);
+                int targetPage = wordPageMap.containsKey(wordKey) ? wordPageMap.get(wordKey) : firstEntryPage;
 
-            currentY += 22;
+                canvas.drawText(word, MARGIN + 12, indexY, bodyPaint);
+                String pageNumStr = String.valueOf(targetPage);
+                float pageStrWidth = bodyPaint.measureText(pageNumStr);
+                canvas.drawText(pageNumStr, PAGE_WIDTH - MARGIN - pageStrWidth, indexY, bodyPaint);
 
-            if (item.getMeanings() != null) {
-                for (Meaning meaning : item.getMeanings()) {
-                    // Part of Speech Badge
-                    String pos = meaning.getPartOfSpeech();
-                    if (pos != null && !pos.trim().isEmpty()) {
-                        String posText = pos.trim().toUpperCase(Locale.US);
-                        float posWidth = posBadgePaint.measureText(posText);
-                        RectF badgeRect = new RectF(margin, currentY, margin + posWidth + 12, currentY + 14);
-                        canvas.drawRoundRect(badgeRect, 4, 4, badgeBgPaint);
-                        canvas.drawText(posText, margin + 6, currentY + 10, posBadgePaint);
-                        currentY += 20;
+                // Dot Leader line
+                float wordWidth = bodyPaint.measureText(word);
+                float dotStart = MARGIN + 12 + wordWidth + 12;
+                float dotEnd = PAGE_WIDTH - MARGIN - pageStrWidth - 12;
+
+                if (dotEnd > dotStart) {
+                    StringBuilder dots = new StringBuilder();
+                    while (dotPaint.measureText(dots.toString() + ". ") < (dotEnd - dotStart)) {
+                        dots.append(". ");
                     }
-
-                    // Definitions & Examples
-                    if (meaning.getDefinitions() != null) {
-                        for (int d = 0; d < meaning.getDefinitions().size(); d++) {
-                            Definition def = meaning.getDefinitions().get(d);
-                            if (def != null && def.getDefinition() != null && !def.getDefinition().trim().isEmpty()) {
-                                String defText = (d + 1) + ". " + def.getDefinition().trim();
-                                StaticLayout defLayout = createStaticLayout(defText, bodyPaint, usableWidth - 12);
-
-                                canvas.save();
-                                canvas.translate(margin + 6, currentY);
-                                defLayout.draw(canvas);
-                                canvas.restore();
-
-                                currentY += defLayout.getHeight() + 4;
-
-                                if (def.getExample() != null && !def.getExample().trim().isEmpty()) {
-                                    String exText = "Example: \"" + def.getExample().trim() + "\"";
-                                    StaticLayout exLayout = createStaticLayout(exText, examplePaint, usableWidth - 24);
-
-                                    canvas.save();
-                                    canvas.translate(margin + 18, currentY);
-                                    exLayout.draw(canvas);
-                                    canvas.restore();
-
-                                    currentY += exLayout.getHeight() + 4;
-                                }
-                            }
-                        }
-                    }
-
-                    // Synonyms / Antonyms
-                    if (meaning.getSynonyms() != null && !meaning.getSynonyms().isEmpty()) {
-                        String syns = "Synonyms: " + TextUtils.join(", ", meaning.getSynonyms());
-                        StaticLayout synLayout = createStaticLayout(syns, metaPaint, usableWidth - 12);
-                        canvas.save();
-                        canvas.translate(margin + 6, currentY);
-                        synLayout.draw(canvas);
-                        canvas.restore();
-                        currentY += synLayout.getHeight() + 4;
-                    }
-
-                    if (meaning.getAntonyms() != null && !meaning.getAntonyms().isEmpty()) {
-                        String ants = "Antonyms: " + TextUtils.join(", ", meaning.getAntonyms());
-                        StaticLayout antLayout = createStaticLayout(ants, metaPaint, usableWidth - 12);
-                        canvas.save();
-                        canvas.translate(margin + 6, currentY);
-                        antLayout.draw(canvas);
-                        canvas.restore();
-                        currentY += antLayout.getHeight() + 4;
-                    }
-
-                    currentY += 4;
+                    canvas.drawText(dots.toString(), dotStart, indexY, dotPaint);
                 }
+
+                indexY += 18;
             }
 
-            // Divider between word entries
-            currentY += 6;
-            canvas.drawLine(margin, currentY, pageWidth - margin, currentY, dividerPaint);
-            currentY += 10;
+            indexY += 10;
         }
 
         pdfDocument.finishPage(page);
 
-        // Save PDF to Cache & Launch Preview Activity
+        // -------------------------------------------------------------------------
+        // 4. DETAILED VOCABULARY ENTRIES
+        // -------------------------------------------------------------------------
+        int currentContentPage = firstEntryPage;
+        pageInfo = new PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, currentContentPage).create();
+        page = pdfDocument.startPage(pageInfo);
+        canvas = page.getCanvas();
+        canvas.drawColor(Color.WHITE);
+
+        drawHeader(canvas, collectionTitle, MARGIN, headerFooterPaint, dividerPaint);
+        drawFooter(canvas, currentContentPage, totalDocumentPages, MARGIN, headerFooterPaint);
+
+        float currentY = MARGIN + 40;
+
+        for (int i = 0; i < sortedList.size(); i++) {
+            DictionaryModel item = sortedList.get(i);
+            int entryHeight = calculateEntryHeight(item, wordTitlePaint, bodyPaint, examplePaint, highlightPaint, notePaint, metaPaint, USABLE_WIDTH);
+
+            if (currentY + entryHeight > contentMaxY) {
+                pdfDocument.finishPage(page);
+                currentContentPage++;
+
+                pageInfo = new PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, currentContentPage).create();
+                page = pdfDocument.startPage(pageInfo);
+                canvas = page.getCanvas();
+                canvas.drawColor(Color.WHITE);
+
+                drawHeader(canvas, collectionTitle, MARGIN, headerFooterPaint, dividerPaint);
+                drawFooter(canvas, currentContentPage, totalDocumentPages, MARGIN, headerFooterPaint);
+
+                currentY = MARGIN + 40;
+            }
+
+            // Draw single vocabulary entry
+            currentY = drawVocabularyEntry(canvas, i + 1, item, currentY, MARGIN, USABLE_WIDTH,
+                    wordTitlePaint, phoneticPaint, posBadgePaint, bodyPaint, examplePaint,
+                    highlightPaint, notePaint, metaPaint, labelPaint, dividerPaint, badgeBgPaint, highlightBgPaint, bronzeLinePaint);
+
+            currentY += 18; // Space before next entry
+        }
+
+        pdfDocument.finishPage(page);
+
+        // -------------------------------------------------------------------------
+        // 5. WORDS AT A GLANCE
+        // -------------------------------------------------------------------------
+        int currentGlancePage = glanceStartPage;
+        pageInfo = new PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, currentGlancePage).create();
+        page = pdfDocument.startPage(pageInfo);
+        canvas = page.getCanvas();
+        canvas.drawColor(Color.WHITE);
+
+        drawHeader(canvas, collectionTitle, MARGIN, headerFooterPaint, dividerPaint);
+        drawFooter(canvas, currentGlancePage, totalDocumentPages, MARGIN, headerFooterPaint);
+
+        float glanceY = MARGIN + 40;
+        canvas.drawText("WORDS AT A GLANCE", MARGIN, glanceY, sectionTitlePaint);
+        canvas.drawText("A quick revision list of all saved vocabulary", MARGIN, glanceY + 16, sectionSubPaint);
+        canvas.drawLine(MARGIN, glanceY + 28, PAGE_WIDTH - MARGIN, glanceY + 28, dividerPaint);
+
+        glanceY += 46;
+
+        for (int i = 0; i < sortedList.size(); i++) {
+            if (glanceY + glanceRowHeight > PAGE_HEIGHT - MARGIN - 40) {
+                pdfDocument.finishPage(page);
+                currentGlancePage++;
+
+                pageInfo = new PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, currentGlancePage).create();
+                page = pdfDocument.startPage(pageInfo);
+                canvas = page.getCanvas();
+                canvas.drawColor(Color.WHITE);
+
+                drawHeader(canvas, collectionTitle, MARGIN, headerFooterPaint, dividerPaint);
+                drawFooter(canvas, currentGlancePage, totalDocumentPages, MARGIN, headerFooterPaint);
+
+                glanceY = MARGIN + 40;
+            }
+
+            DictionaryModel model = sortedList.get(i);
+            String wordStr = model.getWord() != null ? model.getWord().trim() : "";
+            String posStr = "";
+            if (model.getMeanings() != null && !model.getMeanings().isEmpty()) {
+                String rawPos = model.getMeanings().get(0).getPartOfSpeech();
+                if (rawPos != null && !rawPos.trim().isEmpty()) {
+                    posStr = rawPos.substring(0, 1).toUpperCase(Locale.US) + rawPos.substring(1).toLowerCase(Locale.US);
+                }
+            }
+
+            canvas.drawText(wordStr, MARGIN + 8, glanceY, bodyPaint);
+            if (!posStr.isEmpty()) {
+                float posWidth = metaPaint.measureText(posStr);
+                canvas.drawText(posStr, PAGE_WIDTH - MARGIN - 8 - posWidth, glanceY, metaPaint);
+            }
+
+            canvas.drawLine(MARGIN, glanceY + 6, PAGE_WIDTH - MARGIN, glanceY + 6, dividerPaint);
+            glanceY += glanceRowHeight;
+        }
+
+        pdfDocument.finishPage(page);
+
+        // -------------------------------------------------------------------------
+        // 6. FINAL CLOSING PAGE
+        // -------------------------------------------------------------------------
+        pageInfo = new PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, finalClosingPage).create();
+        page = pdfDocument.startPage(pageInfo);
+        canvas = page.getCanvas();
+        canvas.drawColor(Color.WHITE);
+
+        canvas.drawLine(MARGIN + 40, PAGE_HEIGHT * 0.40f, PAGE_WIDTH - MARGIN - 40, PAGE_HEIGHT * 0.40f, dividerPaint);
+
+        TextPaint closingBigPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        closingBigPaint.setColor(COLOR_INK_PRIMARY);
+        closingBigPaint.setTypeface(serifBold);
+        closingBigPaint.setTextSize(16f);
+        closingBigPaint.setTextAlign(Paint.Align.CENTER);
+
+        TextPaint closingBrandPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        closingBrandPaint.setColor(COLOR_BRONZE_ACCENT);
+        closingBrandPaint.setTypeface(serifItalic);
+        closingBrandPaint.setTextSize(13f);
+        closingBrandPaint.setTextAlign(Paint.Align.CENTER);
+
+        canvas.drawText("WORDS DISCOVERED.", PAGE_WIDTH / 2f, PAGE_HEIGHT * 0.47f, closingBigPaint);
+        canvas.drawText("KNOWLEDGE KEPT.", PAGE_WIDTH / 2f, PAGE_HEIGHT * 0.51f, closingBigPaint);
+
+        canvas.drawLine(PAGE_WIDTH / 2f - 30, PAGE_HEIGHT * 0.55f, PAGE_WIDTH / 2f + 30, PAGE_HEIGHT * 0.55f, bronzeLinePaint);
+
+        canvas.drawText("Created with WordShelf", PAGE_WIDTH / 2f, PAGE_HEIGHT * 0.60f, closingBrandPaint);
+
+        pdfDocument.finishPage(page);
+
+        // -------------------------------------------------------------------------
+        // WRITE TO FILE & LAUNCH PREVIEW ACTIVITY
+        // -------------------------------------------------------------------------
         try {
             String sanitizeName = collectionTitle.replaceAll("[^a-zA-Z0-9.-]", "_");
             File pdfFile = new File(context.getCacheDir(), sanitizeName + "_vocabulary.pdf");
@@ -387,74 +560,287 @@ public class PdfExporter {
             pdfDocument.close();
             fos.close();
 
-            // Launch PDF Preview Activity
             Intent previewIntent = new Intent(context, PdfPreviewActivity.class);
             previewIntent.putExtra(PdfPreviewActivity.EXTRA_PDF_PATH, pdfFile.getAbsolutePath());
             previewIntent.putExtra(PdfPreviewActivity.EXTRA_TITLE, collectionTitle);
             context.startActivity(previewIntent);
 
         } catch (Exception e) {
-            Log.e("PDF_EXPORTER", "Error generating PDF", e);
+            Log.e(TAG, "Error generating PDF", e);
             pdfDocument.close();
             Toast.makeText(context, "Failed to generate PDF: " + e.getLocalizedMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 
-    private static int calculateEntryHeight(DictionaryModel item, TextPaint bodyPaint, TextPaint examplePaint, TextPaint metaPaint, int usableWidth) {
-        int height = 22; // Word Title + Phonetic line
+    // =========================================================================
+    // HELPER RENDERING METHODS
+    // =========================================================================
+
+    private static void drawInfoRow(Canvas canvas, String label, String value, float x, float y,
+                                    TextPaint labelPaint, TextPaint valuePaint, Paint dividerPaint) {
+        canvas.drawText(label, x, y, labelPaint);
+        canvas.drawText(value, x, y + 18, valuePaint);
+        canvas.drawLine(x, y + 28, PAGE_WIDTH - MARGIN, y + 28, dividerPaint);
+    }
+
+    private static float drawVocabularyEntry(Canvas canvas, int index, DictionaryModel item, float startY, float x, int width,
+                                             TextPaint wordTitlePaint, TextPaint phoneticPaint, TextPaint posBadgePaint,
+                                             TextPaint bodyPaint, TextPaint examplePaint, TextPaint highlightPaint,
+                                             TextPaint notePaint, TextPaint metaPaint, TextPaint labelPaint,
+                                             Paint dividerPaint, Paint badgeBgPaint, Paint highlightBgPaint, Paint bronzeLinePaint) {
+
+        float y = startY;
+
+        // Entry Number Prefix e.g. "01", "02"
+        String indexStr = String.format(Locale.US, "%02d", index);
+        TextPaint indexNumPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        indexNumPaint.setColor(COLOR_BRONZE_ACCENT);
+        indexNumPaint.setTypeface(Typeface.SERIF);
+        indexNumPaint.setTextSize(11f);
+
+        canvas.drawText(indexStr, x, y + 12, indexNumPaint);
+        float indexWidth = indexNumPaint.measureText(indexStr) + 10;
+
+        // Word (Strongest Visual Element)
+        String wordStr = item.getWord() != null ? item.getWord().trim().toUpperCase(Locale.US) : "";
+        canvas.drawText(wordStr, x + indexWidth, y + 14, wordTitlePaint);
+
+        // Phonetic
+        String phoneticStr = item.getPhonetic() != null ? item.getPhonetic().trim() : "";
+        if (!phoneticStr.isEmpty()) {
+            float wordWidth = wordTitlePaint.measureText(wordStr);
+            canvas.drawText("  " + phoneticStr, x + indexWidth + wordWidth, y + 14, phoneticPaint);
+        }
+
+        y += 24;
+
+        // Meanings, Definitions, Examples & Synonyms
         if (item.getMeanings() != null) {
             for (Meaning meaning : item.getMeanings()) {
-                if (meaning.getPartOfSpeech() != null && !meaning.getPartOfSpeech().trim().isEmpty()) {
-                    height += 20; // Part of speech badge
+                // Part of speech
+                String pos = meaning.getPartOfSpeech();
+                if (pos != null && !pos.trim().isEmpty()) {
+                    String posText = pos.trim().toLowerCase(Locale.US);
+                    float posWidth = posBadgePaint.measureText(posText);
+                    RectF badgeRect = new RectF(x, y, x + posWidth + 12, y + 14);
+                    canvas.drawRoundRect(badgeRect, 3, 3, badgeBgPaint);
+                    canvas.drawText(posText, x + 6, y + 10, posBadgePaint);
+                    y += 18;
                 }
+
+                canvas.drawLine(x, y, x + width, y, dividerPaint);
+                y += 10;
+
+                // Definitions & Examples
                 if (meaning.getDefinitions() != null) {
-                    for (Definition def : meaning.getDefinitions()) {
+                    for (int d = 0; d < meaning.getDefinitions().size(); d++) {
+                        Definition def = meaning.getDefinitions().get(d);
                         if (def != null && def.getDefinition() != null && !def.getDefinition().trim().isEmpty()) {
-                            StaticLayout defLayout = createStaticLayout(def.getDefinition().trim(), bodyPaint, usableWidth - 12);
-                            height += defLayout.getHeight() + 4;
+                            // Section Label
+                            canvas.drawText("DEFINITION", x, y + 8, labelPaint);
+                            y += 12;
+
+                            StaticLayout defLayout = createStaticLayout(def.getDefinition().trim(), bodyPaint, width - 8);
+                            canvas.save();
+                            canvas.translate(x, y);
+                            defLayout.draw(canvas);
+                            canvas.restore();
+                            y += defLayout.getHeight() + 6;
+
+                            // Dictionary Example
                             if (def.getExample() != null && !def.getExample().trim().isEmpty()) {
-                                StaticLayout exLayout = createStaticLayout(def.getExample().trim(), examplePaint, usableWidth - 24);
-                                height += exLayout.getHeight() + 4;
+                                canvas.drawText("EXAMPLE", x, y + 8, labelPaint);
+                                y += 12;
+
+                                String exText = "\"" + def.getExample().trim() + "\"";
+                                StaticLayout exLayout = createStaticLayout(exText, examplePaint, width - 16);
+                                canvas.save();
+                                canvas.translate(x + 8, y);
+                                exLayout.draw(canvas);
+                                canvas.restore();
+                                y += exLayout.getHeight() + 6;
                             }
                         }
                     }
                 }
+
+                // Synonyms
                 if (meaning.getSynonyms() != null && !meaning.getSynonyms().isEmpty()) {
-                    StaticLayout synLayout = createStaticLayout(TextUtils.join(", ", meaning.getSynonyms()), metaPaint, usableWidth - 12);
-                    height += synLayout.getHeight() + 4;
+                    canvas.drawText("SYNONYMS", x, y + 8, labelPaint);
+                    y += 12;
+
+                    String syns = TextUtils.join(" · ", meaning.getSynonyms());
+                    StaticLayout synLayout = createStaticLayout(syns, metaPaint, width - 8);
+                    canvas.save();
+                    canvas.translate(x, y);
+                    synLayout.draw(canvas);
+                    canvas.restore();
+                    y += synLayout.getHeight() + 6;
                 }
-                if (meaning.getAntonyms() != null && !meaning.getAntonyms().isEmpty()) {
-                    StaticLayout antLayout = createStaticLayout(TextUtils.join(", ", meaning.getAntonyms()), metaPaint, usableWidth - 12);
-                    height += antLayout.getHeight() + 4;
-                }
-                height += 4;
             }
         }
-        return height + 16; // Divider line + padding
+
+        // --- READER METADATA ---
+
+        // Found While Reading: Chapter & Page
+        String chapter = item.getChapter() != null ? item.getChapter().trim() : "";
+        String page = item.getPage() != null ? item.getPage().trim() : "";
+        if (!chapter.isEmpty() || !page.isEmpty()) {
+            canvas.drawLine(x, y, x + width, y, dividerPaint);
+            y += 10;
+
+            canvas.drawText("FOUND WHILE READING", x, y + 8, labelPaint);
+            y += 12;
+
+            String foundLocation;
+            if (!chapter.isEmpty() && !page.isEmpty()) {
+                String pageDisplay = page.toLowerCase(Locale.US).startsWith("p") ? page : "Page " + page;
+                foundLocation = chapter + " · " + pageDisplay;
+            } else if (!chapter.isEmpty()) {
+                foundLocation = chapter;
+            } else {
+                foundLocation = page.toLowerCase(Locale.US).startsWith("p") ? page : "Page " + page;
+            }
+
+            canvas.drawText(foundLocation, x, y + 10, bodyPaint);
+            y += 18;
+        }
+
+        // Reader Highlight
+        String highlight = item.getHighlight() != null ? item.getHighlight().trim() : "";
+        if (!highlight.isEmpty()) {
+            canvas.drawLine(x, y, x + width, y, dividerPaint);
+            y += 10;
+
+            canvas.drawText("MY HIGHLIGHT", x, y + 8, labelPaint);
+            y += 12;
+
+            String quote = (highlight.startsWith("\"") && highlight.endsWith("\"")) ? highlight : "\"" + highlight + "\"";
+            StaticLayout hlLayout = createStaticLayout(quote, highlightPaint, width - 24);
+
+            RectF hlRect = new RectF(x, y, x + width, y + hlLayout.getHeight() + 12);
+            canvas.drawRoundRect(hlRect, 4, 4, highlightBgPaint);
+
+            // Left bronze accent bar
+            canvas.drawRect(x, y, x + 3.5f, y + hlLayout.getHeight() + 12, bronzeLinePaint);
+
+            canvas.save();
+            canvas.translate(x + 12, y + 6);
+            hlLayout.draw(canvas);
+            canvas.restore();
+
+            y += hlLayout.getHeight() + 18;
+        }
+
+        // Reader Note
+        String note = item.getNote() != null ? item.getNote().trim() : "";
+        if (!note.isEmpty()) {
+            canvas.drawLine(x, y, x + width, y, dividerPaint);
+            y += 10;
+
+            canvas.drawText("MY NOTE", x, y + 8, labelPaint);
+            y += 12;
+
+            StaticLayout noteLayout = createStaticLayout(note, notePaint, width - 8);
+            canvas.save();
+            canvas.translate(x, y);
+            noteLayout.draw(canvas);
+            canvas.restore();
+
+            y += noteLayout.getHeight() + 8;
+        }
+
+        // Bottom divider for entry
+        canvas.drawLine(x, y, x + width, y, dividerPaint);
+        return y;
     }
 
-    private static void drawHeader(Canvas canvas, String title, int pageWidth, int margin, TextPaint headerPaint, Paint linePaint) {
-        String headerText = "WordShelf: " + title;
-        canvas.drawText(headerText, margin, margin - 14, headerPaint);
-        canvas.drawLine(margin, margin - 8, pageWidth - margin, margin - 8, linePaint);
+    private static int calculateEntryHeight(DictionaryModel item, TextPaint wordTitlePaint, TextPaint bodyPaint,
+                                            TextPaint examplePaint, TextPaint highlightPaint, TextPaint notePaint,
+                                            TextPaint metaPaint, int width) {
+        int height = 24; // Title + Phonetics line
+
+        if (item.getMeanings() != null) {
+            for (Meaning meaning : item.getMeanings()) {
+                if (meaning.getPartOfSpeech() != null && !meaning.getPartOfSpeech().trim().isEmpty()) {
+                    height += 18; // POS badge
+                }
+                height += 10; // Divider
+
+                if (meaning.getDefinitions() != null) {
+                    for (Definition def : meaning.getDefinitions()) {
+                        if (def != null && def.getDefinition() != null && !def.getDefinition().trim().isEmpty()) {
+                            height += 12; // "DEFINITION" label
+                            StaticLayout defLayout = createStaticLayout(def.getDefinition().trim(), bodyPaint, width - 8);
+                            height += defLayout.getHeight() + 6;
+
+                            if (def.getExample() != null && !def.getExample().trim().isEmpty()) {
+                                height += 12; // "EXAMPLE" label
+                                StaticLayout exLayout = createStaticLayout("\"" + def.getExample().trim() + "\"", examplePaint, width - 16);
+                                height += exLayout.getHeight() + 6;
+                            }
+                        }
+                    }
+                }
+
+                if (meaning.getSynonyms() != null && !meaning.getSynonyms().isEmpty()) {
+                    height += 12; // "SYNONYMS" label
+                    StaticLayout synLayout = createStaticLayout(TextUtils.join(" · ", meaning.getSynonyms()), metaPaint, width - 8);
+                    height += synLayout.getHeight() + 6;
+                }
+            }
+        }
+
+        // Reader metadata height
+        String chapter = item.getChapter() != null ? item.getChapter().trim() : "";
+        String page = item.getPage() != null ? item.getPage().trim() : "";
+        if (!chapter.isEmpty() || !page.isEmpty()) {
+            height += 40;
+        }
+
+        String highlight = item.getHighlight() != null ? item.getHighlight().trim() : "";
+        if (!highlight.isEmpty()) {
+            height += 22;
+            String quote = (highlight.startsWith("\"") && highlight.endsWith("\"")) ? highlight : "\"" + highlight + "\"";
+            StaticLayout hlLayout = createStaticLayout(quote, highlightPaint, width - 24);
+            height += hlLayout.getHeight() + 18;
+        }
+
+        String note = item.getNote() != null ? item.getNote().trim() : "";
+        if (!note.isEmpty()) {
+            height += 22;
+            StaticLayout noteLayout = createStaticLayout(note, notePaint, width - 8);
+            height += noteLayout.getHeight() + 8;
+        }
+
+        return height + 10;
     }
 
-    private static void drawFooter(Canvas canvas, int pageNum, int totalPages, int pageWidth, int pageHeight, int margin, TextPaint footerPaint) {
-        String footerText = "Page " + pageNum + " of " + totalPages;
+    private static void drawHeader(Canvas canvas, String title, int margin, TextPaint headerPaint, Paint linePaint) {
+        canvas.drawText("WordShelf", margin, margin - 14, headerPaint);
+        float titleWidth = headerPaint.measureText(title);
+        canvas.drawText(title, PAGE_WIDTH - margin - titleWidth, margin - 14, headerPaint);
+        canvas.drawLine(margin, margin - 8, PAGE_WIDTH - margin, margin - 8, linePaint);
+    }
+
+    private static void drawFooter(Canvas canvas, int pageNum, int totalPages, int margin, TextPaint footerPaint) {
+        String footerText = String.valueOf(pageNum);
         float width = footerPaint.measureText(footerText);
-        canvas.drawText(footerText, (pageWidth - width) / 2f, pageHeight - (margin / 2f), footerPaint);
+        canvas.drawText(footerText, (PAGE_WIDTH - width) / 2f, PAGE_HEIGHT - (margin / 2f), footerPaint);
     }
 
     private static StaticLayout createStaticLayout(CharSequence text, TextPaint paint, int width) {
+        int safeWidth = Math.max(10, width);
+        CharSequence safeText = text != null ? text : "";
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
-            return StaticLayout.Builder.obtain(text, 0, text.length(), paint, width)
+            return StaticLayout.Builder.obtain(safeText, 0, safeText.length(), paint, safeWidth)
                     .setAlignment(Layout.Alignment.ALIGN_NORMAL)
-                    .setLineSpacing(0.0f, 1.15f)
+                    .setLineSpacing(0.0f, 1.18f)
                     .setIncludePad(false)
                     .build();
         } else {
             //noinspection deprecation
-            return new StaticLayout(text, paint, width, Layout.Alignment.ALIGN_NORMAL, 1.15f, 0.0f, false);
+            return new StaticLayout(safeText, paint, safeWidth, Layout.Alignment.ALIGN_NORMAL, 1.18f, 0.0f, false);
         }
     }
 }

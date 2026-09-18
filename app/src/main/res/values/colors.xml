@@ -40,4 +40,13 @@
     <color name="chip_adv_text">#B45309</color>
     <color name="chip_default_bg">#F0EDE6</color>
     <color name="chip_default_text">#5C6B73</color>
+
+    <!-- Skeleton Loading Colors -->
+    <color name="skeleton_base">#E8E4DE</color>
+    <color name="skeleton_highlight">#F4F1EB</color>
+
+    <!-- Stale Cache Warning -->
+    <color name="stale_warning_bg">#FEF7E7</color>
+    <color name="stale_warning_text">#B45309</color>
+
 </resources>

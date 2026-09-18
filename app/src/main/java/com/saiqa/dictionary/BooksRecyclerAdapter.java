@@ -76,20 +76,29 @@ public class BooksRecyclerAdapter extends RecyclerView.Adapter<BooksRecyclerAdap
             dialog.show();
 
             EditText edt_book_name = dialog.findViewById(R.id.edt_book_name);
+            EditText edt_book_author = dialog.findViewById(R.id.edt_book_author);
             Button add_book_btn = dialog.findViewById(R.id.add_book_btn);
             Button cancel_button = dialog.findViewById(R.id.cancel_button);
             TextView textTitle = dialog.findViewById(R.id.textTitle);
 
             add_book_btn.setText("Update");
             textTitle.setText("Update Book");
-            edt_book_name.setText(allBooks.get(position));
+            String oldBookTitle = allBooks.get(position);
+            edt_book_name.setText(oldBookTitle);
+
+            DictionaryDatabaseHelper dbHelper = new DictionaryDatabaseHelper(context);
+            String existingAuthor = dbHelper.getBookAuthor(oldBookTitle);
+            if (edt_book_author != null && existingAuthor != null) {
+                edt_book_author.setText(existingAuthor);
+            }
 
             add_book_btn.setOnClickListener(v3 -> {
                 String newBookName = edt_book_name.getText().toString().trim();
+                String newAuthor = edt_book_author != null && edt_book_author.getText() != null 
+                        ? edt_book_author.getText().toString().trim() : "";
                 if (!newBookName.isEmpty()) {
-                    String oldBookTitle = allBooks.get(position);
                     DictionaryDatabaseHelper DictionaryDB = new DictionaryDatabaseHelper(context);
-                    DictionaryDB.updateBooks(oldBookTitle, newBookName);
+                    DictionaryDB.updateBooks(oldBookTitle, newBookName, newAuthor);
                     allBooks.set(position, newBookName);
                     updateWordCounts();
                     notifyItemChanged(position);

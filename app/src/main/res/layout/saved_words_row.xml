@@ -53,6 +53,17 @@
                     tools:text="/rɪˈzɪl.jəns/" />
             </LinearLayout>
 
+            <!-- Edit Reader Details Button -->
+            <ImageButton
+                android:id="@+id/btn_edit_reader_details"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Edit Reader Details"
+                android:padding="6dp"
+                android:src="@drawable/ic_edit"
+                app:tint="@color/color_accent" />
+
             <!-- TTS Audio Button -->
             <ImageButton
                 android:id="@+id/btn_audio_saved_word"
@@ -112,6 +123,128 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical" />
+
+        <!-- Reader Metadata Container -->
+        <LinearLayout
+            android:id="@+id/ll_reader_metadata_container"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <!-- Divider before Reader Details -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="8dp"
+                android:background="@color/surface_stroke" />
+
+            <!-- Where Found (Chapter & Page) -->
+            <LinearLayout
+                android:id="@+id/ll_reader_found"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="6dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.05"
+                    android:text="FOUND WHILE READING"
+                    android:textColor="@color/color_accent"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_reader_found_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:fontFamily="serif"
+                    android:textColor="@color/text_color"
+                    android:textSize="12sp"
+                    tools:text="Chapter 7 · Page 143" />
+            </LinearLayout>
+
+            <!-- Highlight -->
+            <LinearLayout
+                android:id="@+id/ll_reader_highlight"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="4dp"
+                android:background="@color/surface_elevated"
+                android:orientation="horizontal"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="8dp"
+                android:visibility="gone">
+
+                <!-- Left Accent Border -->
+                <View
+                    android:layout_width="3dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginEnd="8dp"
+                    android:background="@color/color_accent" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:letterSpacing="0.05"
+                        android:text="MY HIGHLIGHT"
+                        android:textColor="@color/color_accent"
+                        android:textSize="10sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_reader_highlight_text"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="serif"
+                        android:textStyle="italic"
+                        android:textColor="@color/text_color"
+                        android:textSize="13sp"
+                        tools:text="&quot;Her happiness was ephemeral.&quot;" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Note -->
+            <LinearLayout
+                android:id="@+id/ll_reader_note"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.05"
+                    android:text="MY NOTE"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/tv_reader_note_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textColor="@color/text_color"
+                    android:textSize="13sp"
+                    tools:text="A word I want to remember because it appeared several times." />
+            </LinearLayout>
+
+        </LinearLayout>
 
     </LinearLayout>
 

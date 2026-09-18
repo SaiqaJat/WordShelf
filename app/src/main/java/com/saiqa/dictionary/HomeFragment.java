@@ -1,5 +1,6 @@
 package com.saiqa.dictionary;
 
+import android.animation.ObjectAnimator;
 import android.annotation.SuppressLint;
 import android.app.Dialog;
 import android.content.Context;
@@ -57,6 +58,13 @@ public class HomeFragment extends Fragment implements TextToSpeech.OnInitListene
     private ImageView error_icon;
     private Button btn_retry_search;
 
+    /** Skeleton loading state container (shown during API fetch). */
+    private View skeleton_container;
+    /** Stale cache warning banner (shown when displaying offline cached result). */
+    private TextView stale_warning_bar;
+    /** Pulsing alpha animation for the skeleton shimmer effect. */
+    private ObjectAnimator skeletonAnimator;
+
     private RecyclerView recyclerview_word_result, rv_recent_searches, rv_autocomplete;
     private WordResultAdapter adapter;
     private HistoryChipAdapter historyAdapter;
@@ -70,6 +78,18 @@ public class HomeFragment extends Fragment implements TextToSpeech.OnInitListene
 
     private Call<List<WordResultData>> activeSearchCall;
     private Call<List<DatamuseSearchResult>> activeAutocompleteCall;
+
+    /**
+     * The word currently being fetched over the network.
+     * Used to prevent duplicate in-flight requests for the same word.
+     */
+    private String currentInFlightWord = null;
+
+    /**
+     * The most recent word searched by the user.
+     * API callbacks compare against this to discard stale/out-of-order responses.
+     */
+    private String latestSearchedWord = null;
 
     private final Handler autocompleteHandler = new Handler(Looper.getMainLooper());
     private Runnable autocompleteRunnable;
@@ -124,6 +144,17 @@ public class HomeFragment extends Fragment implements TextToSpeech.OnInitListene
 
         card_autocomplete = view.findViewById(R.id.card_autocomplete);
         rv_autocomplete = view.findViewById(R.id.rv_autocomplete);
+
+        skeleton_container = view.findViewById(R.id.skeleton_container);
+        stale_warning_bar = view.findViewById(R.id.stale_warning_bar);
+
+        // Skeleton pulse animation: 1.0 → 0.4 → 1.0 alpha, repeat indefinitely
+        if (skeleton_container != null) {
+            skeletonAnimator = ObjectAnimator.ofFloat(skeleton_container, "alpha", 1f, 0.4f);
+            skeletonAnimator.setDuration(900);
+            skeletonAnimator.setRepeatCount(ObjectAnimator.INFINITE);
+            skeletonAnimator.setRepeatMode(ObjectAnimator.REVERSE);
+        }
 
         recyclerview_word_result.setLayoutManager(new LinearLayoutManager(requireContext()));
         recyclerview_word_result.setLayoutAnimation(AnimationUtils.loadLayoutAnimation(getContext(), R.anim.layout_animation_slide_up));
@@ -320,34 +351,53 @@ public class HomeFragment extends Fragment implements TextToSpeech.OnInitListene
 
         final String cleanWord = rawInput.trim().toLowerCase();
 
+        // Track latest user intent — used to discard stale/out-of-order API responses
+        latestSearchedWord = cleanWord;
+
         hideAutocomplete();
 
-        // 1. Check Cache first
+        // ── 1. L1 + L2 Cache check (instant / disk) ──────────────────────────
         List<WordResultData> cachedResult = SearchCacheManager.getInstance().get(cleanWord);
         if (cachedResult != null && !cachedResult.isEmpty()) {
+            // Cache hit: show immediately, no loading indicator
             displaySearchResult(cachedResult);
             dictionaryDB.addSearchHistory(cachedResult.get(0).getWord(), cachedResult.get(0).getPhonetic());
             loadRecentSearches();
             return;
         }
 
-        // 2. Fetch via API
+        // ── 2. Duplicate in-flight prevention ────────────────────────────────
+        if (cleanWord.equals(currentInFlightWord)) {
+            // Same word is already being fetched — do nothing; the existing callback will deliver.
+            return;
+        }
+
+        // ── 3. Cancel any stale outstanding requests ──────────────────────────
         if (activeSearchCall != null) {
             activeSearchCall.cancel();
         }
         if (activeDatamuseFallbackCall != null) {
             activeDatamuseFallbackCall.cancel();
         }
+        currentInFlightWord = cleanWord;
 
         progressBarVisibility(true);
 
+        // ── 4. Fire primary dictionary API request ────────────────────────────
         activeSearchCall = RetrofitInstance.setInstance().apiResponse.getWordMeaning(cleanWord);
         activeSearchCall.enqueue(new Callback<List<WordResultData>>() {
             @Override
             public void onResponse(@NonNull Call<List<WordResultData>> call, @NonNull Response<List<WordResultData>> response) {
                 if (call.isCanceled()) return;
 
+                // Discard response if the user has already searched a different word
+                if (!cleanWord.equals(latestSearchedWord)) {
+                    currentInFlightWord = null;
+                    return;
+                }
+
                 if (response.isSuccessful() && response.body() != null && !response.body().isEmpty()) {
+                    currentInFlightWord = null;
                     progressBarVisibility(false);
                     List<WordResultData> resultList = response.body();
                     SearchCacheManager.getInstance().put(cleanWord, resultList);
@@ -384,6 +434,7 @@ public class HomeFragment extends Fragment implements TextToSpeech.OnInitListene
                 if (response.isSuccessful() && response.body() != null && !response.body().isEmpty()) {
                     WordResultData fallbackResult = convertDatamuseToWordResultData(cleanWord, response.body());
                     if (fallbackResult != null && fallbackResult.getMeanings() != null && !fallbackResult.getMeanings().isEmpty()) {
+                        currentInFlightWord = null;
                         List<WordResultData> resultList = new ArrayList<>();
                         resultList.add(fallbackResult);
                         SearchCacheManager.getInstance().put(cleanWord, resultList);
@@ -395,6 +446,7 @@ public class HomeFragment extends Fragment implements TextToSpeech.OnInitListene
                     }
                 }
 
+                currentInFlightWord = null;
                 showErrorState(
                         "No definition found",
                         "We couldn't find a definition for \"" + cleanWord + "\". Please check the spelling and try again."
@@ -404,14 +456,31 @@ public class HomeFragment extends Fragment implements TextToSpeech.OnInitListene
             @Override
             public void onFailure(@NonNull Call<List<DatamuseWordDetail>> call, @NonNull Throwable t) {
                 if (call.isCanceled()) return;
+                currentInFlightWord = null;
                 progressBarVisibility(false);
                 Log.e("FALLBACK_API_FAIL", "Datamuse fallback failed for " + cleanWord, t);
+
+                // Last resort: serve stale cache rather than a blank error screen
+                List<WordResultData> stale = SearchCacheManager.getInstance().get(cleanWord);
+                if (stale != null && !stale.isEmpty()) {
+                    displaySearchResult(stale);
+                    showStaleWarning();
+                    return;
+                }
+
                 showErrorState(
                         "Unable to fetch definition",
                         "Please check your internet connection and try searching again."
                 );
             }
         });
+    }
+
+    /** Shows the stale-cache warning banner above the word result. */
+    private void showStaleWarning() {
+        if (stale_warning_bar != null) {
+            stale_warning_bar.setVisibility(View.VISIBLE);
+        }
     }
 
     private WordResultData convertDatamuseToWordResultData(String searchedWord, List<DatamuseWordDetail> datamuseList) {
@@ -498,20 +567,51 @@ public class HomeFragment extends Fragment implements TextToSpeech.OnInitListene
         if (error_state_container != null) error_state_container.setVisibility(View.GONE);
         if (card_word_header != null) card_word_header.setVisibility(View.GONE);
         if (recyclerview_word_result != null) recyclerview_word_result.setVisibility(View.GONE);
+        hideSkeletonState();
+        if (stale_warning_bar != null) stale_warning_bar.setVisibility(View.GONE);
         loadRecentSearches();
     }
 
+    /** Shows the skeleton loading placeholder and starts its pulse animation. */
+    private void showSkeletonState() {
+        if (skeleton_container != null) {
+            skeleton_container.setVisibility(View.VISIBLE);
+            if (skeletonAnimator != null && !skeletonAnimator.isRunning()) {
+                skeletonAnimator.start();
+            }
+        }
+        // Hide result content while loading
+        if (card_word_header != null) card_word_header.setVisibility(View.GONE);
+        if (recyclerview_word_result != null) recyclerview_word_result.setVisibility(View.GONE);
+        if (stale_warning_bar != null) stale_warning_bar.setVisibility(View.GONE);
+    }
+
+    /** Hides the skeleton and stops the pulse animation. */
+    private void hideSkeletonState() {
+        if (skeletonAnimator != null && skeletonAnimator.isRunning()) {
+            skeletonAnimator.cancel();
+        }
+        if (skeleton_container != null) {
+            skeleton_container.setAlpha(1f);
+            skeleton_container.setVisibility(View.GONE);
+        }
+    }
+
     private void showResultState() {
+        hideSkeletonState();
         if (empty_state_container != null) empty_state_container.setVisibility(View.GONE);
         if (error_state_container != null) error_state_container.setVisibility(View.GONE);
+        if (stale_warning_bar != null) stale_warning_bar.setVisibility(View.GONE);
         if (card_word_header != null) card_word_header.setVisibility(View.VISIBLE);
         if (recyclerview_word_result != null) recyclerview_word_result.setVisibility(View.VISIBLE);
     }
 
     private void showErrorState(String title, String message) {
+        hideSkeletonState();
         if (empty_state_container != null) empty_state_container.setVisibility(View.GONE);
         if (card_word_header != null) card_word_header.setVisibility(View.GONE);
         if (recyclerview_word_result != null) recyclerview_word_result.setVisibility(View.GONE);
+        if (stale_warning_bar != null) stale_warning_bar.setVisibility(View.GONE);
 
         if (error_state_container != null) {
             error_state_container.setVisibility(View.VISIBLE);
@@ -540,6 +640,31 @@ public class HomeFragment extends Fragment implements TextToSpeech.OnInitListene
         TextView textNoBooks = view.findViewById(R.id.text_no_books);
         LinearLayout creatingBookLl = view.findViewById(R.id.creatingBook_ll);
 
+        View toggleReaderDetails = view.findViewById(R.id.ll_toggle_reader_details);
+        View readerDetailsInput = view.findViewById(R.id.ll_reader_details_input);
+        EditText edtSheetChapter = view.findViewById(R.id.edt_sheet_chapter);
+        EditText edtSheetPage = view.findViewById(R.id.edt_sheet_page);
+        EditText edtSheetHighlight = view.findViewById(R.id.edt_sheet_highlight);
+        EditText edtSheetNote = view.findViewById(R.id.edt_sheet_note);
+
+        if (toggleReaderDetails != null && readerDetailsInput != null) {
+            toggleReaderDetails.setOnClickListener(v -> {
+                boolean isVisible = readerDetailsInput.getVisibility() == View.VISIBLE;
+                readerDetailsInput.setVisibility(isVisible ? View.GONE : View.VISIBLE);
+            });
+        }
+
+        Runnable populateReaderDetails = () -> {
+            String ch = edtSheetChapter != null && edtSheetChapter.getText() != null ? edtSheetChapter.getText().toString().trim() : "";
+            String pg = edtSheetPage != null && edtSheetPage.getText() != null ? edtSheetPage.getText().toString().trim() : "";
+            String hl = edtSheetHighlight != null && edtSheetHighlight.getText() != null ? edtSheetHighlight.getText().toString().trim() : "";
+            String nt = edtSheetNote != null && edtSheetNote.getText() != null ? edtSheetNote.getText().toString().trim() : "";
+            wordModel.setChapter(ch.isEmpty() ? null : ch);
+            wordModel.setPage(pg.isEmpty() ? null : pg);
+            wordModel.setHighlight(hl.isEmpty() ? null : hl);
+            wordModel.setNote(nt.isEmpty() ? null : nt);
+        };
+
         dictionaryDB = new DictionaryDatabaseHelper(context);
         List<String> books = dictionaryDB.getAllBookNames();
 
@@ -555,6 +680,7 @@ public class HomeFragment extends Fragment implements TextToSpeech.OnInitListene
         creatingBookLl.setOnClickListener(v -> {
             BookDialogUtils.showCreateBookDialog(context, dictionaryDB, (bookName, success) -> {
                 if (success) {
+                    populateReaderDetails.run();
                     boolean wordSaved = dictionaryDB.addWords(bookName, wordModel);
                     if (wordSaved) {
                         Toast.makeText(context, "Saved \"" + wordModel.getWord() + "\" to " + bookName, Toast.LENGTH_SHORT).show();
@@ -567,6 +693,7 @@ public class HomeFragment extends Fragment implements TextToSpeech.OnInitListene
         });
 
         BookSelectionAdapter bookSelectionAdapter = new BookSelectionAdapter(books, bookName -> {
+            populateReaderDetails.run();
             boolean wordSaved = dictionaryDB.addWords(bookName, wordModel);
             if (wordSaved) {
                 Toast.makeText(context, "Saved \"" + wordModel.getWord() + "\" to " + bookName, Toast.LENGTH_SHORT).show();
@@ -586,6 +713,10 @@ public class HomeFragment extends Fragment implements TextToSpeech.OnInitListene
             search_icon.setVisibility(View.GONE);
             if (btn_clear_search != null) btn_clear_search.setVisibility(View.GONE);
             progressBar.setVisibility(View.VISIBLE);
+            // Show skeleton loading state in the content area
+            showSkeletonState();
+            if (empty_state_container != null) empty_state_container.setVisibility(View.GONE);
+            if (error_state_container != null) error_state_container.setVisibility(View.GONE);
         } else {
             search_icon.setVisibility(View.VISIBLE);
             if (btn_clear_search != null && search_input != null && search_input.getText().length() > 0) {
@@ -609,6 +740,11 @@ public class HomeFragment extends Fragment implements TextToSpeech.OnInitListene
         }
         if (activeDatamuseFallbackCall != null) {
             activeDatamuseFallbackCall.cancel();
+        }
+        // Release skeleton animation to avoid leaking the View reference
+        if (skeletonAnimator != null) {
+            skeletonAnimator.cancel();
+            skeletonAnimator = null;
         }
         super.onDestroy();
     }
